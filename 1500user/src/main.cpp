@@ -72,7 +72,14 @@ void loop(){
 
   }
   static unsigned long lastDisplayUpdate = 0;
-  if(millis() - lastDisplayUpdate >= 1000){
+  static bool wasHolding = false;
+  bool holding = resetButton_IsHolding();
+  // Khi đang giữ nút reset, reset_button.cpp tự vẽ countdown — main loop không ghi đè.
+  // Khi vừa thả (transition true→false), ép redraw ngay để khỏi delay ~1s.
+  bool justReleased = wasHolding && !holding;
+  wasHolding = holding;
+
+  if(!holding && (justReleased || millis() - lastDisplayUpdate >= 1000)){
       if (wifi_IsAPMode()) {
           // SSID dài 27 chars → tách 2 dòng để khỏi clip trên OLED 128px.
           // Nếu STA đã connect (AP_STA mode sau khi save) show STA IP, không phải AP IP.

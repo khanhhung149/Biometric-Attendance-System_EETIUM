@@ -14,5 +14,6 @@
 
 void resetButton_Init();
 void resetButton_Task();  // gọi mỗi vòng loop()
+bool resetButton_IsHolding();  // true khi nút đang được giữ — main loop dừng redraw
 
 #endif

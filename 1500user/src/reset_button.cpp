@@ -61,6 +61,8 @@ void resetButton_Init() {
   Serial.print("[Reset] button on GPIO "); Serial.println(RESET_BUTTON_PIN);
 }
 
+bool resetButton_IsHolding() { return pressed_; }
+
 void resetButton_Task() {
   unsigned long now = millis();
   // Debounce: nếu raw state vừa đổi, đợi DEBOUNCE_MS rồi mới chấp nhận.
@@ -74,12 +76,13 @@ void resetButton_Task() {
 
   bool down = (raw == LOW);
 
-  // Edge: vừa nhấn
+  // Edge: vừa nhấn — hiển thị ngay từ giây 0
   if (down && !pressed_) {
     pressed_ = true;
     pressStart_ = now;
     reachedStage_ = 0;
-    lastShownSec_ = -1;
+    lastShownSec_ = 0;
+    display_ShowMessage("Hold: 0s\n5s: Reset Net\n30s: Clear DB");
     return;
   }
 
@@ -101,29 +104,34 @@ void resetButton_Task() {
   // Đang giữ → cập nhật feedback (OLED + buzzer ở các mốc)
   if (down && pressed_) {
     unsigned long held = now - pressStart_;
+    int sec = (int)(held / 1000);
 
-    // Mốc 30s — chuyển sang stage 2, beep dài cảnh báo factory
+    // Beep mốc 30s — cảnh báo factory reset
     if (held >= RESET_FACTORY_HOLD_MS && reachedStage_ < 2) {
       reachedStage_ = 2;
-      display_ShowMessage("Release for\nFACTORY\nRESET");
       beepBuzzer(3, 100);
-      return;
     }
-    // Mốc 5s — chuyển sang stage 1, beep ngắn báo có thể thả
-    if (held >= RESET_NET_HOLD_MS && reachedStage_ < 1) {
+    // Beep mốc 5s — báo có thể thả để reset network
+    else if (held >= RESET_NET_HOLD_MS && reachedStage_ < 1) {
       reachedStage_ = 1;
-      display_ShowMessage("Release for\nNetwork\nReset");
       beepBuzzer(1, 200);
-      return;
     }
 
-    // Trước stage 1 (giữ 1-5s) — show countdown nhỏ, đổi mỗi giây để khỏi flicker
-    if (held >= 1000 && reachedStage_ == 0) {
-      int sec = (int)(held / 1000);
-      if (sec != lastShownSec_) {
-        lastShownSec_ = sec;
-        display_ShowMessage("Hold " + String(sec) + "s\n5s=Net\n30s=Factory");
+    // Update countdown mỗi giây (tránh flicker khi vẽ liên tục)
+    if (sec != lastShownSec_) {
+      lastShownSec_ = sec;
+      String msg;
+      if (reachedStage_ >= 2) {
+        // >=30s: thả ra sẽ wipe DB
+        msg = "Hold: " + String(sec) + "s\nRelease for\nCLEAR ALL DB";
+      } else if (reachedStage_ >= 1) {
+        // 5s ≤ held < 30s: thả ra sẽ reset network, tiếp tục đếm tới 30
+        msg = "Hold: " + String(sec) + "s\n>>Reset Net<<\n30s: Clear DB";
+      } else {
+        // 0 ≤ held < 5s: hướng dẫn cả 2 mốc
+        msg = "Hold: " + String(sec) + "s\n5s: Reset Net\n30s: Clear DB";
       }
+      display_ShowMessage(msg);
     }
   }
 }
