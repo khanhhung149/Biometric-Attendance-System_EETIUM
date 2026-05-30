@@ -8,6 +8,7 @@
 
 bool storage_Init();
 void storage_LogUsage();
+String storage_UsageJson();  // JSON dung lượng FS + backlog cho endpoint /storage
 String readFile(fs::FS &fs, const char * path);
 void writeFile(fs::FS &fs, const char * path, const char * message);
 int db_exec1(sqlite3 *db, const char *sql);

@@ -6,7 +6,7 @@
 #include "fingerprint.h"  // fingerprint_QueueCount()
 
 
-U8G2_SSD1309_128X64_NONAME2_F_4W_SW_SPI display(U8G2_R2, /* clock=*/ 18, /* data=*/ 23, /* cs=*/ 5, /* dc=*/ 26, /* reset= */ 27 );
+U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI display(U8G2_R2, /* clock=*/ 18, /* data=*/ 23, /* cs=*/ 5, /* dc=*/ 26, /* reset= */ 27 );
  void display_Init(){
    Serial.println("Khoi dong man hinh SPI...");
   
@@ -20,8 +20,9 @@ U8G2_SSD1309_128X64_NONAME2_F_4W_SW_SPI display(U8G2_R2, /* clock=*/ 18, /* data
 
 void oledDisplayCenter(String text, int x, int y) {
   int width = display.getStrWidth(text.c_str());
-
-  display.setCursor((128 - width) / 2, y);
+  // +1 px bù lệch nửa pixel khi width lẻ (làm tròn xuống trong phép chia 2),
+  // giúp text nhìn nghiêng về phải thay vì trái — vẫn cùng 1px tổng lệch.
+  display.setCursor((128 - width) / 2 + 1, y);
   display.print(text);
 }
 
@@ -40,7 +41,7 @@ void oledDisplayMultiLineCenter(const String& text, int yTop, int yBottom, int l
     int idx = text.indexOf('\n', from);
     String line = (idx == -1) ? text.substring(from) : text.substring(from, idx);
     int width = display.getStrWidth(line.c_str());
-    display.setCursor((128 - width) / 2, y);
+    display.setCursor((128 - width) / 2 + 1, y);
     display.print(line);
     y += lineHeight;
     if (idx == -1) break;

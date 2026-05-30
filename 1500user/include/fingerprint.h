@@ -28,4 +28,10 @@ void fingerprint_DeleteAll();
 String fingerprint_GetSensorIds();
 // Tổng số template hiện có trên sensor (-1 nếu sensor chưa init).
 int fingerprint_GetTemplateCount();
+// TEST ONLY — DISABLED cho go-live. Bật lại = bỏ #if 0 ở đây + trong fingerprint.cpp.
+#if 0
+void fingerprint_SimulateEnqueue(const String& date, const String& time,
+                                 const String& empid, const String& empname,
+                                 const String& empemail, const String& emppos);
+#endif
 #endif

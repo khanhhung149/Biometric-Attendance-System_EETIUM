@@ -5,7 +5,7 @@
 #include <U8g2lib.h>
 #include "wifi_manager.h"
 
-extern U8G2_SSD1309_128X64_NONAME2_F_4W_SW_SPI display;
+extern U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI display;
 
 
 void display_Init();

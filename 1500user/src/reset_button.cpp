@@ -2,7 +2,8 @@
 #include "reset_button.h"
 #include <LittleFS.h>
 #include "display.h"
-#include "storage.h"   // test1_db handle để close trước khi format
+#include "storage.h"   // test1_db handle để close trước khi xóa DB
+#include "fingerprint.h"  // fingerprint_DeleteAll() cho mốc Clear DB
 
 // beepBuzzer định nghĩa trong fingerprint.cpp, không có declaration trong header.
 extern void beepBuzzer(int beeps, int durationMs);
@@ -41,17 +42,26 @@ static void doNetworkReset() {
 }
 
 static void doFactoryReset() {
-  Serial.println("[Reset] === FACTORY RESET (wipe LittleFS) ===");
-  display_ShowMessage("FACTORY\nWiping...");
-  // Đóng SQLite handle trước khi format để giải phóng fd. fd treo sau format
-  // sẽ vô hại vì ESP.restart() ngay sau, nhưng đây là practice sạch.
+  // Hold 30s = Clear DB + Reset Network (gộp 2 action).
+  // Xóa: SQLite DB, template trong R502F flash, WiFi config.
+  // Giữ: web assets (index.html/css/js) — không cần uploadfs lại.
+  Serial.println("[Reset] === CLEAR DB + RESET NETWORK ===");
+  display_ShowMessage("Clearing DB\n& WiFi...");
   if (test1_db) {
     sqlite3_close(test1_db);
     test1_db = nullptr;
   }
-  LittleFS.format();
+  removeIfExists("/backup.db");
+  // Xóa template trong R502F flash để không còn fpid mồ côi
+  fingerprint_DeleteAll();
+  // Xóa WiFi config — boot sau sẽ vào AP setup mode
+  removeIfExists("/ssid.txt");
+  removeIfExists("/pass.txt");
+  removeIfExists("/ip.txt");
+  removeIfExists("/gateway.txt");
+  removeIfExists("/dhcpcheck.txt");
   beepBuzzer(3, 150);
-  display_ShowMessage("Factory\nReset OK\nRestarting");
+  display_ShowMessage("All Cleared\nRestarting");
   delay(1500);
   ESP.restart();
 }

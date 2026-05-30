@@ -64,44 +64,45 @@
   .modal-msg.ok { display: block; background: #1f5132; color: #d4edda; }
   .modal-msg.err { display: block; background: #5c1a1f; color: #f8d7da; }
 </style>
+<script src="/i18n.js"></script>
 </head>
 <body>
 <div class="account-wrap">
-  <div class="account-title">Account</div>
+  <div class="account-title" data-i18n="Account">Account</div>
   <div class="account-row">
-    <div class="field">Login Name</div>
+    <div class="field" data-i18n="Login Name">Login Name</div>
     <div class="value" id="curUsername">admin</div>
-    <button class="change" onclick="openNameModal()">Change</button>
+    <button class="change" onclick="openNameModal()" data-i18n="Change">Change</button>
   </div>
   <div class="account-row">
-    <div class="field">Login Password</div>
+    <div class="field" data-i18n="Login Password">Login Password</div>
     <div class="value">********</div>
-    <button class="change" onclick="openPassModal()">Change</button>
+    <button class="change" onclick="openPassModal()" data-i18n="Change">Change</button>
   </div>
   <div class="account-row">
-    <div class="field">Sign out</div>
-    <div class="value">End current session</div>
-    <button class="signout-btn" onclick="doSignout()">Sign out</button>
+    <div class="field" data-i18n="Sign out">Sign out</div>
+    <div class="value" data-i18n="End current session">End current session</div>
+    <button class="signout-btn" onclick="doSignout()" data-i18n="Sign out">Sign out</button>
   </div>
 </div>
 
 <div class="account-wrap" style="margin-top: 16px;">
-  <div class="account-title">Database Backup &amp; Restore</div>
+  <div class="account-title" data-i18n="Database Backup & Restore">Database Backup &amp; Restore</div>
   <div class="account-row">
-    <div class="field">Backup database</div>
-    <div class="value">Download <code>test1.db</code> before running <code>uploadfs</code></div>
-    <button class="action-btn" onclick="doBackup()">Download</button>
+    <div class="field" data-i18n="Backup database">Backup database</div>
+    <div class="value" data-i18n-html="BackupDesc">Download <code>backup.db</code> before running <code>uploadfs</code></div>
+    <button class="action-btn" onclick="doBackup()" data-i18n="Download">Download</button>
   </div>
   <div class="account-row">
-    <div class="field">Restore database</div>
-    <div class="value">Upload a previously backed-up <code>test1.db</code> (device will restart)</div>
+    <div class="field" data-i18n="Restore database">Restore database</div>
+    <div class="value" data-i18n-html="RestoreDesc">Upload a previously backed-up <code>backup.db</code> (device will restart)</div>
     <input type="file" id="restoreFile" class="file-hidden" accept=".db" onchange="doRestore()">
-    <button class="action-btn warn" onclick="document.getElementById('restoreFile').click()">Upload</button>
+    <button class="action-btn warn" onclick="document.getElementById('restoreFile').click()" data-i18n="Upload">Upload</button>
   </div>
   <div class="account-row">
-    <div class="field">Sync check</div>
-    <div class="value">Compare database records vs sensor templates</div>
-    <button class="action-btn" onclick="doSync()" id="syncBtn">Check</button>
+    <div class="field" data-i18n="Sync check">Sync check</div>
+    <div class="value" data-i18n="Compare database records vs sensor templates">Compare database records vs sensor templates</div>
+    <button class="action-btn" onclick="doSync()" id="syncBtn" data-i18n="Check">Check</button>
   </div>
   <div class="account-row" style="padding-top: 0; border-top: none;">
     <div class="sync-result" id="syncResult"></div>
@@ -109,13 +110,13 @@
 </div>
 
 <!-- Change Login Name Modal -->
-<div class="modal-backdrop" id="nameModal">
+<div class="modal-backdrop" id="nameModal" onclick="if(event.target===this)closeNameModal()">
   <div class="modal-box">
-    <div class="modal-head">Change login name</div>
+    <div class="modal-head" data-i18n="Change login name">Change login name</div>
     <div class="modal-body">
       <div class="modal-msg" id="nameMsg"></div>
       <div class="grp">
-        <label>Current login password</label>
+        <label data-i18n="Current login password">Current login password</label>
         <div class="input-wrap">
           <input type="password" id="nameCurPass" autocomplete="current-password">
           <button type="button" class="eye" onclick="togglePw(this)">&#128065;</button>
@@ -123,25 +124,25 @@
       </div>
       <hr>
       <div class="grp">
-        <label>New login name</label>
+        <label data-i18n="New login name">New login name</label>
         <input type="text" id="newName" autocomplete="username">
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-cancel" onclick="closeNameModal()">Cancel</button>
+      <button class="btn-cancel" onclick="closeNameModal()" data-i18n="Cancel">Cancel</button>
       <button class="btn-ok" onclick="submitNameChange()">OK</button>
     </div>
   </div>
 </div>
 
 <!-- Change Login Password Modal -->
-<div class="modal-backdrop" id="passModal">
+<div class="modal-backdrop" id="passModal" onclick="if(event.target===this)closePassModal()">
   <div class="modal-box">
-    <div class="modal-head">Change the login password</div>
+    <div class="modal-head" data-i18n="Change the login password">Change the login password</div>
     <div class="modal-body">
       <div class="modal-msg" id="passMsg"></div>
       <div class="grp">
-        <label>Current login password</label>
+        <label data-i18n="Current login password">Current login password</label>
         <div class="input-wrap">
           <input type="password" id="passCurPass" autocomplete="current-password">
           <button type="button" class="eye" onclick="togglePw(this)">&#128065;</button>
@@ -149,14 +150,14 @@
       </div>
       <hr>
       <div class="grp">
-        <label>New login password</label>
+        <label data-i18n="New login password">New login password</label>
         <div class="input-wrap">
           <input type="password" id="newPass" autocomplete="new-password">
           <button type="button" class="eye" onclick="togglePw(this)">&#128065;</button>
         </div>
       </div>
       <div class="grp">
-        <label>Retype new login password</label>
+        <label data-i18n="Retype new login password">Retype new login password</label>
         <div class="input-wrap">
           <input type="password" id="newPass2" autocomplete="new-password">
           <button type="button" class="eye" onclick="togglePw(this)">&#128065;</button>
@@ -164,7 +165,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-cancel" onclick="closePassModal()">Cancel</button>
+      <button class="btn-cancel" onclick="closePassModal()" data-i18n="Cancel">Cancel</button>
       <button class="btn-ok" onclick="submitPassChange()">OK</button>
     </div>
   </div>
@@ -197,26 +198,31 @@ function openPassModal(){
 function closePassModal(){ document.getElementById('passModal').classList.remove('show'); }
 function showMsg(id,txt,cls){ var m=document.getElementById(id); m.textContent=txt; m.className='modal-msg '+cls; }
 
+// Bilingual helper: tr(vi, en)
+function tr(viText, enText){
+  return ((localStorage.getItem('eetium_lang')||'vi')==='vi') ? viText : enText;
+}
+
 function submitNameChange(){
   var cur=document.getElementById('nameCurPass').value;
   var name=document.getElementById('newName').value.trim();
-  if(!cur){ showMsg('nameMsg','Enter current password','err'); return; }
-  if(!name){ showMsg('nameMsg','Enter new username','err'); return; }
+  if(!cur){ showMsg('nameMsg', tr('Nhập mật khẩu hiện tại','Enter current password'),'err'); return; }
+  if(!name){ showMsg('nameMsg', tr('Nhập tên đăng nhập mới','Enter new username'),'err'); return; }
   var x=new XMLHttpRequest();
   x.open('POST','/update_account');
   x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
   x.onload=function(){
     if(x.status===200 && x.responseText==='OK'){
       document.getElementById('curUsername').textContent=name;
-      showMsg('nameMsg','Saved! Signing out...','ok');
+      showMsg('nameMsg', tr('Đã lưu! Đang đăng xuất...','Saved! Signing out...'),'ok');
       setTimeout(function(){ window.location.href='/signout'; },1500);
     } else if(x.responseText==='WRONG_PASS'){
-      showMsg('nameMsg','Incorrect current password','err');
+      showMsg('nameMsg', tr('Mật khẩu hiện tại không đúng','Incorrect current password'),'err');
     } else {
-      showMsg('nameMsg','Error: '+x.responseText,'err');
+      showMsg('nameMsg', tr('Lỗi: ','Error: ')+x.responseText,'err');
     }
   };
-  x.onerror=function(){ showMsg('nameMsg','Connection error','err'); };
+  x.onerror=function(){ showMsg('nameMsg', tr('Lỗi kết nối','Connection error'),'err'); };
   x.send('cur_pass='+encodeURIComponent(cur)+'&wwwid='+encodeURIComponent(name));
 }
 
@@ -224,28 +230,40 @@ function submitPassChange(){
   var cur=document.getElementById('passCurPass').value;
   var np=document.getElementById('newPass').value;
   var np2=document.getElementById('newPass2').value;
-  if(!cur){ showMsg('passMsg','Enter current password','err'); return; }
-  if(!np){ showMsg('passMsg','Enter new password','err'); return; }
-  if(np!==np2){ showMsg('passMsg','Passwords do not match','err'); return; }
+  if(!cur){ showMsg('passMsg', tr('Nhập mật khẩu hiện tại','Enter current password'),'err'); return; }
+  if(!np){ showMsg('passMsg', tr('Nhập mật khẩu mới','Enter new password'),'err'); return; }
+  if(np!==np2){ showMsg('passMsg', tr('Mật khẩu không khớp','Passwords do not match'),'err'); return; }
   var x=new XMLHttpRequest();
   x.open('POST','/update_account');
   x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
   x.onload=function(){
     if(x.status===200 && x.responseText==='OK'){
-      showMsg('passMsg','Saved! Signing out...','ok');
+      showMsg('passMsg', tr('Đã lưu! Đang đăng xuất...','Saved! Signing out...'),'ok');
       setTimeout(function(){ window.location.href='/signout'; },1500);
     } else if(x.responseText==='WRONG_PASS'){
-      showMsg('passMsg','Incorrect current password','err');
+      showMsg('passMsg', tr('Mật khẩu hiện tại không đúng','Incorrect current password'),'err');
     } else {
-      showMsg('passMsg','Error: '+x.responseText,'err');
+      showMsg('passMsg', tr('Lỗi: ','Error: ')+x.responseText,'err');
     }
   };
-  x.onerror=function(){ showMsg('passMsg','Connection error','err'); };
+  x.onerror=function(){ showMsg('passMsg', tr('Lỗi kết nối','Connection error'),'err'); };
   x.send('cur_pass='+encodeURIComponent(cur)+'&wwwpass='+encodeURIComponent(np));
 }
 
 function doSignout(){
-  if(confirm('Sign out?')) window.location.href='/signout';
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  if (window.customConfirm) {
+    customConfirm({
+      title: lang==='vi'?'Xác nhận đăng xuất':'Confirm sign out',
+      msg: lang==='vi'?'Bạn có muốn đăng xuất?':'Do you want to sign out?',
+      okText: lang==='vi'?'Đăng xuất':'Sign out',
+      cancelText: lang==='vi'?'Hủy':'Cancel',
+      okColor: '#dc3545',
+      onOk: function(){ window.location.href='/signout'; }
+    });
+  } else {
+    if(confirm(lang==='vi'?'Đăng xuất?':'Sign out?')) window.location.href='/signout';
+  }
 }
 
 function doBackup(){
@@ -254,7 +272,7 @@ function doBackup(){
   // Chrome có thể chặn vì "Insecure download" (.db qua HTTP) — bấm "Keep" để allow.
   var a=document.createElement('a');
   a.href='/backup';
-  a.download='test1.db';
+  a.download='backup.db';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -264,32 +282,88 @@ function doRestore(){
   var inp=document.getElementById('restoreFile');
   if(!inp.files||!inp.files.length) return;
   var f=inp.files[0];
-  if(!confirm('Restore database from "'+f.name+'"? Device will RESTART after upload.')) {
-    inp.value='';
-    return;
-  }
-  var fd=new FormData();
-  fd.append('file',f);
-  var x=new XMLHttpRequest();
-  x.open('POST','/restore');
-  x.onload=function(){
-    if(x.status===200 && x.responseText==='OK_RESTART'){
-      alert('Restore OK. Device is restarting — wait ~10s then refresh.');
-    } else {
-      alert('Restore failed: '+x.responseText);
-    }
-    inp.value='';
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var L={
+    title: lang==='vi'?'Xác nhận phục hồi':'Confirm restore',
+    confirm: lang==='vi'
+      ? 'Phục hồi database từ "'+f.name+'"?\nThiết bị sẽ KHỞI ĐỘNG LẠI sau khi tải lên.'
+      : 'Restore database from "'+f.name+'"?\nDevice will RESTART after upload.',
+    okRestart: lang==='vi'
+      ? 'Phục hồi thành công. Thiết bị đang khởi động lại — chờ ~10 giây rồi làm mới trang.'
+      : 'Restore OK. Device is restarting — wait ~10s then refresh.',
+    failed: lang==='vi' ? 'Phục hồi thất bại: ' : 'Restore failed: ',
+    uploadErr: lang==='vi' ? 'Lỗi tải lên' : 'Upload error',
+    restoreT: lang==='vi'?'Hoàn tất':'Done',
+    failT:    lang==='vi'?'Lỗi':'Error'
   };
-  x.onerror=function(){ alert('Upload error'); inp.value=''; };
-  x.send(fd);
+  var doRestoreReq = function(){
+    var fd=new FormData();
+    fd.append('file',f);
+    var x=new XMLHttpRequest();
+    x.open('POST','/restore');
+    x.onload=function(){
+      if(x.status===200 && x.responseText==='OK_RESTART'){
+        if (window.customAlert) customAlert({title:L.restoreT, msg:L.okRestart, okColor:'#198754'});
+        else alert(L.okRestart);
+      } else {
+        if (window.customAlert) customAlert({title:L.failT, msg:L.failed+x.responseText, okColor:'#dc3545'});
+        else alert(L.failed + x.responseText);
+      }
+      inp.value='';
+    };
+    x.onerror=function(){
+      if (window.customAlert) customAlert({title:L.failT, msg:L.uploadErr, okColor:'#dc3545'});
+      else alert(L.uploadErr);
+      inp.value='';
+    };
+    x.send(fd);
+  };
+  if (window.customConfirm) {
+    customConfirm({
+      title: L.title, msg: L.confirm,
+      okText: lang==='vi'?'Phục hồi':'Restore',
+      cancelText: lang==='vi'?'Hủy':'Cancel',
+      okColor: '#f7c948',
+      onOk: doRestoreReq,
+      onCancel: function(){ inp.value=''; }
+    });
+  } else {
+    if (confirm(L.confirm)) doRestoreReq();
+    else inp.value='';
+  }
 }
 
 function doSync(){
   var btn=document.getElementById('syncBtn');
   var box=document.getElementById('syncResult');
-  btn.disabled=true; btn.textContent='Checking...';
-  box.classList.remove('show');
-  // Timeout 15s — sensor enumerate 1-50 IDs tốn ~3-5s, cho thêm buffer cho mạng.
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var L={
+    checking: lang==='vi'?'Đang kiểm tra...':'Checking...',
+    check:    lang==='vi'?'Kiểm tra':'Check',
+    close:    lang==='vi'?'Đóng':'Close',
+    sensorTpl:lang==='vi'?'Mẫu trên sensor':'Sensor templates',
+    dbRec:    lang==='vi'?'Bản ghi DB (id 1-1500)':'Database records (id 1-1500)',
+    orphan:   lang==='vi'?'Template thừa (chỉ trên sensor)':'Orphan templates (sensor only)',
+    broken:   lang==='vi'?'Bản ghi bị lỗi (chỉ trên DB)':'Broken records (DB only)',
+    status:   lang==='vi'?'Trạng thái':'Status',
+    inSync:   lang==='vi'?'Đồng bộ':'In sync',
+    outSync:  lang==='vi'?'Không đồng bộ':'Out of sync',
+    none:     lang==='vi'?'không':'none',
+    unavail:  lang==='vi'?'không khả dụng':'unavailable',
+    noSensor: lang==='vi'?'Không phát hiện sensor vân tay — không thể kiểm tra.':'Fingerprint sensor not detected — cannot verify sync.',
+    timeout:  lang==='vi'?'Quá thời gian kiểm tra (>15s)':'Sync check timed out (>15s)',
+    failed:   lang==='vi'?'Kiểm tra thất bại':'Sync check failed'
+  };
+
+  // Toggle: nếu panel đang mở thì đóng (giống bấm lần 2)
+  if (box.classList.contains('show')) {
+    box.classList.remove('show');
+    btn.textContent = L.check;
+    return;
+  }
+
+  btn.disabled=true; btn.textContent=L.checking;
+  // Timeout 15s — sensor enumerate IDs tốn ~3-5s, cho thêm buffer cho mạng.
   var ctrl=new AbortController();
   var to=setTimeout(function(){ctrl.abort();}, 15000);
   fetch('/sync_check',{signal:ctrl.signal}).then(function(r){clearTimeout(to);return r.json()}).then(function(d){
@@ -300,26 +374,26 @@ function doSync(){
     var brokenN=countIds(d.broken_ids);
     var match=(orphanN===0 && brokenN===0);
     var html='';
-    html+='<div class="row-line"><span class="lbl">Sensor templates</span><span class="val">'+(sensorBad?'<span class="bad">unavailable</span>':d.sensor_count)+'</span></div>';
-    html+='<div class="row-line"><span class="lbl">Database records (id 1-50)</span><span class="val">'+d.db_count+'</span></div>';
+    html+='<div class="row-line"><span class="lbl">'+L.sensorTpl+'</span><span class="val">'+(sensorBad?'<span class="bad">'+L.unavail+'</span>':d.sensor_count)+'</span></div>';
+    html+='<div class="row-line"><span class="lbl">'+L.dbRec+'</span><span class="val">'+d.db_count+'</span></div>';
     if(!sensorBad){
-      html+='<div class="row-line"><span class="lbl">Orphan templates (sensor only)</span><span class="val">'+(orphanN?('<span class="bad">'+orphanN+'</span>'):'<span class="ok">none</span>')+'</span></div>';
+      html+='<div class="row-line"><span class="lbl">'+L.orphan+'</span><span class="val">'+(orphanN?('<span class="bad">'+orphanN+'</span>'):'<span class="ok">'+L.none+'</span>')+'</span></div>';
       if(orphanN) html+='<div class="id-list bad">'+fmtIds(d.orphan_ids)+'</div>';
-      html+='<div class="row-line"><span class="lbl">Broken records (DB only)</span><span class="val">'+(brokenN?('<span class="bad">'+brokenN+'</span>'):'<span class="ok">none</span>')+'</span></div>';
+      html+='<div class="row-line"><span class="lbl">'+L.broken+'</span><span class="val">'+(brokenN?('<span class="bad">'+brokenN+'</span>'):'<span class="ok">'+L.none+'</span>')+'</span></div>';
       if(brokenN) html+='<div class="id-list bad">'+fmtIds(d.broken_ids)+'</div>';
-      html+='<div class="row-line"><span class="lbl"><b>Status</b></span><span class="val">'+(match?'<span class="ok">In sync</span>':'<span class="bad">Out of sync</span>')+'</span></div>';
+      html+='<div class="row-line"><span class="lbl"><b>'+L.status+'</b></span><span class="val">'+(match?'<span class="ok">'+L.inSync+'</span>':'<span class="bad">'+L.outSync+'</span>')+'</span></div>';
     } else {
-      html+='<div class="row-line"><span class="lbl bad">Fingerprint sensor not detected — cannot verify sync.</span></div>';
+      html+='<div class="row-line"><span class="lbl bad">'+L.noSensor+'</span></div>';
     }
     box.innerHTML=html;
     box.classList.add('show');
-    btn.disabled=false; btn.textContent='Check';
+    btn.disabled=false; btn.textContent=L.close;
   }).catch(function(e){
     clearTimeout(to);
-    var msg=(e&&e.name==='AbortError')?'Sync check timed out (>15s)':'Sync check failed';
+    var msg=(e&&e.name==='AbortError')?L.timeout:L.failed;
     box.innerHTML='<div class="bad">'+msg+'</div>';
     box.classList.add('show');
-    btn.disabled=false; btn.textContent='Check';
+    btn.disabled=false; btn.textContent=L.close;
   });
 }
 loadUsername();

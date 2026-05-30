@@ -2,7 +2,8 @@
 #include "reset_button.h"
 #include <LittleFS.h>
 #include "display.h"
-#include "storage.h"   // test1_db handle để close trước khi format
+#include "storage.h"   // test1_db handle để close trước khi xóa DB
+#include "fingerprint.h"  // fingerprint_DeleteAll() cho mốc Clear DB
 
 // beepBuzzer định nghĩa trong fingerprint.cpp, không có declaration trong header.
 extern void beepBuzzer(int beeps, int durationMs);
@@ -41,17 +42,26 @@ static void doNetworkReset() {
 }
 
 static void doFactoryReset() {
-  Serial.println("[Reset] === FACTORY RESET (wipe LittleFS) ===");
-  display_ShowMessage("FACTORY\nWiping...");
-  // Đóng SQLite handle trước khi format để giải phóng fd. fd treo sau format
-  // sẽ vô hại vì ESP.restart() ngay sau, nhưng đây là practice sạch.
+  // Hold 30s = Clear DB + Reset Network (gộp 2 action).
+  // Xóa: SQLite DB, template trong sensor flash, WiFi config.
+  // Giữ: web assets (index.html/css/js) — không cần uploadfs lại.
+  Serial.println("[Reset] === CLEAR DB + RESET NETWORK ===");
+  display_ShowMessage("Clearing DB\n& WiFi...");
   if (test1_db) {
     sqlite3_close(test1_db);
     test1_db = nullptr;
   }
-  LittleFS.format();
+  removeIfExists("/backup.db");
+  // Xóa template trong sensor flash để không còn fpid mồ côi
+  fingerprint_DeleteAll();
+  // Xóa WiFi config — boot sau sẽ vào AP setup mode
+  removeIfExists("/ssid.txt");
+  removeIfExists("/pass.txt");
+  removeIfExists("/ip.txt");
+  removeIfExists("/gateway.txt");
+  removeIfExists("/dhcpcheck.txt");
   beepBuzzer(3, 150);
-  display_ShowMessage("Factory\nReset OK\nRestarting");
+  display_ShowMessage("All Cleared\nRestarting");
   delay(1500);
   ESP.restart();
 }
@@ -60,6 +70,8 @@ void resetButton_Init() {
   pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
   Serial.print("[Reset] button on GPIO "); Serial.println(RESET_BUTTON_PIN);
 }
+
+bool resetButton_IsHolding() { return pressed_; }
 
 void resetButton_Task() {
   unsigned long now = millis();
@@ -74,12 +86,13 @@ void resetButton_Task() {
 
   bool down = (raw == LOW);
 
-  // Edge: vừa nhấn
+  // Edge: vừa nhấn — hiển thị ngay từ giây 0
   if (down && !pressed_) {
     pressed_ = true;
     pressStart_ = now;
     reachedStage_ = 0;
-    lastShownSec_ = -1;
+    lastShownSec_ = 0;
+    display_ShowMessage("Hold: 0s\n5s: Reset Net\n30s: Clear DB");
     return;
   }
 
@@ -101,29 +114,34 @@ void resetButton_Task() {
   // Đang giữ → cập nhật feedback (OLED + buzzer ở các mốc)
   if (down && pressed_) {
     unsigned long held = now - pressStart_;
+    int sec = (int)(held / 1000);
 
-    // Mốc 30s — chuyển sang stage 2, beep dài cảnh báo factory
+    // Beep mốc 30s — cảnh báo factory reset
     if (held >= RESET_FACTORY_HOLD_MS && reachedStage_ < 2) {
       reachedStage_ = 2;
-      display_ShowMessage("Release for\nFACTORY\nRESET");
       beepBuzzer(3, 100);
-      return;
     }
-    // Mốc 5s — chuyển sang stage 1, beep ngắn báo có thể thả
-    if (held >= RESET_NET_HOLD_MS && reachedStage_ < 1) {
+    // Beep mốc 5s — báo có thể thả để reset network
+    else if (held >= RESET_NET_HOLD_MS && reachedStage_ < 1) {
       reachedStage_ = 1;
-      display_ShowMessage("Release for\nNetwork\nReset");
       beepBuzzer(1, 200);
-      return;
     }
 
-    // Trước stage 1 (giữ 1-5s) — show countdown nhỏ, đổi mỗi giây để khỏi flicker
-    if (held >= 1000 && reachedStage_ == 0) {
-      int sec = (int)(held / 1000);
-      if (sec != lastShownSec_) {
-        lastShownSec_ = sec;
-        display_ShowMessage("Hold " + String(sec) + "s\n5s=Net\n30s=Factory");
+    // Update countdown mỗi giây (tránh flicker khi vẽ liên tục)
+    if (sec != lastShownSec_) {
+      lastShownSec_ = sec;
+      String msg;
+      if (reachedStage_ >= 2) {
+        // >=30s: thả ra sẽ wipe DB + WiFi
+        msg = "Hold: " + String(sec) + "s\nRelease for\nCLEAR ALL DB";
+      } else if (reachedStage_ >= 1) {
+        // 5s ≤ held < 30s: thả ra sẽ reset network, tiếp tục đếm tới 30
+        msg = "Hold: " + String(sec) + "s\n>>Reset Net<<\n30s: Clear DB";
+      } else {
+        // 0 ≤ held < 5s: hướng dẫn cả 2 mốc
+        msg = "Hold: " + String(sec) + "s\n5s: Reset Net\n30s: Clear DB";
       }
+      display_ShowMessage(msg);
     }
   }
 }

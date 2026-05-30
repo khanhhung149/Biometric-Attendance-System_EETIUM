@@ -22,8 +22,17 @@ bool storage_Init() {
         return false;
     }
 
+    // Migration: rename file cũ /backup.db → /backup.db nếu thiết bị từng dùng tên cũ.
+    if (LittleFS.exists("/backup.db") && !LittleFS.exists("/backup.db")) {
+        if (LittleFS.rename("/backup.db", "/backup.db")) {
+            Serial.println("[DB] migrated /backup.db → /backup.db");
+        } else {
+            Serial.println("[DB] migration failed, keeping /backup.db");
+        }
+    }
+
     sqlite3_initialize();
-    if (openDb("/littlefs/test1.db", &test1_db)) {
+    if (openDb("/littlefs/backup.db", &test1_db)) {
         return false;
     }
 
@@ -71,6 +80,28 @@ bool storage_Init() {
     return true;
 }
 
+// Đọc kích thước + đếm số dòng (records) của /backlog.txt.
+// Đọc theo chunk 512B để nhanh; file thường nhỏ, lớn nhất ~1MB vẫn <100ms.
+static void backlogStats(size_t* outBytes, int* outLines) {
+    *outBytes = 0;
+    *outLines = 0;
+    File f = LittleFS.open("/backlog.txt", "r");
+    if (!f) return;
+    *outBytes = f.size();
+    uint8_t buf[512];
+    int lines = 0;
+    while (f.available()) {
+        int n = f.read(buf, sizeof(buf));
+        for (int i = 0; i < n; i++) if (buf[i] == '\n') lines++;
+    }
+    f.close();
+    *outLines = lines;
+}
+
+// Ước lượng số lượt quét offline còn ghi được: mỗi lượt tốn ~DB row + backlog
+// line ≈ 230 byte. Dùng để cảnh báo sắp đầy buffer offline.
+#define OFFLINE_BYTES_PER_PUNCH 230
+
 void storage_LogUsage() {
     size_t total = LittleFS.totalBytes();
     size_t used  = LittleFS.usedBytes();
@@ -87,17 +118,51 @@ void storage_LogUsage() {
     Serial.print(pct, 1);
     Serial.println("%)");
 
-    File db = LittleFS.open("/test1.db", "r");
+    File db = LittleFS.open("/backup.db", "r");
     if (db) {
-        Serial.print("[FS] /test1.db = ");
+        Serial.print("[FS] /backup.db = ");
         Serial.print(db.size());
         Serial.println("B");
         db.close();
     }
 
+    size_t blBytes; int blLines;
+    backlogStats(&blBytes, &blLines);
+    Serial.print("[FS] backlog offline = ");
+    Serial.print(blLines);
+    Serial.print(" records (");
+    Serial.print(blBytes);
+    Serial.print("B), con ghi them ~");
+    Serial.print(freeB / OFFLINE_BYTES_PER_PUNCH);
+    Serial.println(" luot quet offline");
+
     if (pct > 80.0f) {
         Serial.println("[FS] WARNING: usage > 80%");
     }
+}
+
+// JSON dung lượng cho endpoint /storage — xem nhanh khi đang chạy.
+String storage_UsageJson() {
+    size_t total = LittleFS.totalBytes();
+    size_t used  = LittleFS.usedBytes();
+    size_t freeB = (total > used) ? (total - used) : 0;
+    float pct    = total > 0 ? (used * 100.0f / total) : 0.0f;
+
+    size_t dbBytes = 0;
+    File db = LittleFS.open("/backup.db", "r");
+    if (db) { dbBytes = db.size(); db.close(); }
+
+    size_t blBytes; int blLines;
+    backlogStats(&blBytes, &blLines);
+
+    char json[256];
+    snprintf(json, sizeof(json),
+        "{\"total\":%u,\"used\":%u,\"free\":%u,\"pct\":%.1f,"
+        "\"db\":%u,\"backlogBytes\":%u,\"backlogLines\":%d,\"estOfflinePunchesLeft\":%u}",
+        (unsigned)total, (unsigned)used, (unsigned)freeB, pct,
+        (unsigned)dbBytes, (unsigned)blBytes, blLines,
+        (unsigned)(freeB / OFFLINE_BYTES_PER_PUNCH));
+    return String(json);
 }
 
 String readFile(fs::FS &fs, const char * path) {
@@ -177,9 +242,15 @@ static int callback(void *data, int argc, char **argv, char **azColName) {
     web_content += argv[i];
     web_content += "</td>";
   }
-  web_content += "<td><button onClick =\"del('";
+  // Cột Action: Edit (mở modal sửa thông tin, có nút "Lấy lại mẫu") + Delete
+  web_content += "<td>";
+  web_content += "<button class='edit-btn' onClick=\"edit('";
   web_content += argv[0];
-  web_content += "')\">Delete</button></td></tr>";
+  web_content += "')\" data-i18n=\"Edit\">Edit</button> ";
+  web_content += "<button class='del-btn' onClick=\"del('";
+  web_content += argv[0];
+  web_content += "')\" data-i18n=\"Delete\">Delete</button>";
+  web_content += "</td></tr>";
   return 0;
 }
 

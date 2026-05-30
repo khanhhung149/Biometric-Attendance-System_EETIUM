@@ -2,6 +2,7 @@
 #include "web_server.h"
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
 #include "storage.h"
 #include "wifi_manager.h"
 #include "config.h"
@@ -61,6 +62,21 @@ static void serveApSetup() {
         "<p>Run: <code>pio run -t uploadfs</code></p>"
         "</body></html>");
 }
+
+// Serve static asset từ LittleFS với MIME type đúng (cho /i18n.js, CSS, font, ...).
+static void serveStaticFile(const char* path, const char* mime) {
+    if (!LittleFS.exists(path)) {
+        server.send(404, "text/plain", "Not found");
+        return;
+    }
+    File f = LittleFS.open(path, "r");
+    if (!f) { server.send(500, "text/plain", "Open failed"); return; }
+    server.sendHeader("Cache-Control", "public, max-age=3600");
+    server.streamFile(f, mime);
+    f.close();
+}
+
+static void serveI18nJs() { serveStaticFile("/i18n.js", "application/javascript"); }
 
 static void handleNotFound() {
     // Captive portal: phone OS gửi rất nhiều probe URL (Android /generate_204,
@@ -185,7 +201,11 @@ static void insertRecord() {
 
   uint8_t id = efpid.toInt();
 
-  if (getFingerprintEnroll(id) == FINGERPRINT_OK)
+  // Enroll block ~30s chờ user → bỏ loopTask khỏi WDT tạm thời
+  esp_task_wdt_delete(NULL);
+  uint8_t enrollRc = getFingerprintEnroll(id);
+  esp_task_wdt_add(NULL);
+  if (enrollRc == FINGERPRINT_OK)
   {
     sql = "insert into attendance(id,eid,employee_name,employee_email,position,fpid) values(" + efpid + ",'" + eemployee_id + "','" + ename + "','" + eemail_id + "','" + epos + "'," + efpid + ")";
     Serial.println(sql);
@@ -406,6 +426,11 @@ static void getNetInfo() {
   json += "\"}";
   server.send(200, "application/json", json);
 }
+
+// Trả JSON dung lượng LittleFS + backlog offline (xem nhanh capacity buffer khi offline)
+static void storageInfo() {
+  server.send(200, "application/json", storage_UsageJson());
+}
 static void deleteRecord() {
   web_content = "";
   String sql = "";
@@ -435,6 +460,113 @@ static void deleteRecord() {
     web_content += "FAIL";
   server.send (200, "text/html", web_content);
 }
+// GET /get_user?id=N — trả JSON một record từ attendance
+static String userJson_;
+static int getUserCallback(void *data, int argc, char **argv, char **azColName) {
+  userJson_ = "{";
+  for (int i = 0; i < argc; i++) {
+    if (i > 0) userJson_ += ",";
+    userJson_ += "\""; userJson_ += azColName[i]; userJson_ += "\":";
+    if (argv[i] == NULL) userJson_ += "null";
+    else {
+      userJson_ += "\"";
+      for (size_t j = 0; argv[i][j]; j++) {
+        char c = argv[i][j];
+        if (c == '"' || c == '\\') userJson_ += '\\';
+        userJson_ += c;
+      }
+      userJson_ += "\"";
+    }
+  }
+  userJson_ += "}";
+  return 0;
+}
+
+static void getUser() {
+  if (!is_authentified()) { server.send(401, "text/plain", "Unauthorized"); return; }
+  String idStr = server.arg("id");
+  if (idStr == "") { server.send(400, "text/plain", "Missing id"); return; }
+  userJson_ = "";
+  String sql = "SELECT id, eid, employee_name, employee_email, position, fpid FROM attendance WHERE id=" + idStr;
+  char *zErr = 0;
+  sqlite3_exec(test1_db, sql.c_str(), getUserCallback, NULL, &zErr);
+  if (zErr) sqlite3_free(zErr);
+  if (userJson_ == "") { server.send(404, "text/plain", "Not found"); return; }
+  server.send(200, "application/json", userJson_);
+}
+
+static String sqlEsc_(const String &s) {
+  String out; out.reserve(s.length() + 4);
+  for (size_t i = 0; i < s.length(); i++) {
+    if (s[i] == '\'') out += "''";
+    else out += s[i];
+  }
+  return out;
+}
+
+static void updateUser() {
+  if (!is_authentified()) { server.send(401, "text/plain", "Unauthorized"); return; }
+  String id = server.arg("id");
+  if (id == "") { server.send(400, "text/plain", "Missing id"); return; }
+  String eid = server.arg("eid");
+
+  // Check duplicate eid (chỉ nếu eid không rỗng — trống thì cho phép)
+  if (eid.length() > 0) {
+    Sqid = "0";
+    String checkSql = "SELECT COUNT(*) FROM attendance WHERE eid='" + sqlEsc_(eid) +
+                      "' AND id != " + id;
+    db_exec1(test1_db, checkSql.c_str());
+    if (Sqid.toInt() > 0) {
+      server.send(409, "text/plain", "DUPLICATE_EID");
+      return;
+    }
+  }
+
+  String sql = "UPDATE attendance SET eid='" + sqlEsc_(eid) +
+               "', employee_name='" + sqlEsc_(server.arg("name")) +
+               "', employee_email='" + sqlEsc_(server.arg("email")) +
+               "', position='" + sqlEsc_(server.arg("pos")) +
+               "' WHERE id=" + id;
+  if (db_exec(test1_db, sql.c_str()) == SQLITE_OK) server.send(200, "text/plain", "OK");
+  else server.send(500, "text/plain", "FAIL");
+}
+
+// Re-enroll fingerprint cho fpid đã có sẵn. Xóa template cũ rồi enroll lại.
+// Endpoint synchronous: block ~30s (chờ user đặt ngón tay 6 lần theo OLED).
+static void reenrollFingerprint() {
+  if (!is_authentified()) {
+    server.sendHeader("Location", "/login");
+    server.sendHeader("Cache-Control", "no-cache");
+    server.send(301);
+    return;
+  }
+  String fpidStr = server.arg("fpid");
+  if (fpidStr == "") {
+    server.send(400, "text/plain", "Missing fpid");
+    return;
+  }
+  int fpidInt = fpidStr.toInt();
+  if (fpidInt < 1 || fpidInt > 50) {  // FPM383C capacity 50
+    server.send(400, "text/plain", "Invalid fpid");
+    return;
+  }
+  uint8_t fpid = (uint8_t)fpidInt;
+  Serial.printf("[Reenroll] fpid=%u — delete + enroll\n", fpid);
+  // Enroll block ~30s — bỏ loopTask khỏi WDT tạm thời
+  esp_task_wdt_delete(NULL);
+  deleteFingerprint(fpid);
+  delay(100);
+  uint8_t rc = getFingerprintEnroll(fpid);
+  esp_task_wdt_add(NULL);
+  if (rc == FINGERPRINT_OK) {
+    Serial.printf("[Reenroll] fpid=%u OK\n", fpid);
+    server.send(200, "text/plain", "OK");
+  } else {
+    Serial.printf("[Reenroll] fpid=%u FAIL rc=%u\n", fpid, rc);
+    server.send(500, "text/plain", "FAIL");
+  }
+}
+
 static void showRecords() {
   if (!is_authentified()) {
     server.sendHeader("Location", "/login");
@@ -533,6 +665,9 @@ static void updateAccount() {
   server.send(200, "text/plain", changed ? "OK" : "NO_CHANGE");
 }
 
+// ===== TEST endpoint — DISABLED cho go-live =====
+// Bật lại = đổi #if 0 → #if 1 và bỏ comment route ở webServer_Init.
+#if 0
 // Seed N dummy users vào DB để test giao diện table.
 // Gọi: GET /seedtest?n=30  (yêu cầu đã login). Mặc định 30, max 50.
 static void seedTestData() {
@@ -544,18 +679,19 @@ static void seedTestData() {
   }
   int count = server.hasArg("n") ? server.arg("n").toInt() : 100;
   if (count < 1) count = 100;
-  if (count > 100) count = 100;
+  if (count > 2000) count = 2000;  // tăng cap để seed được 1500 user/lần
 
   // Tìm max id hiện tại để insert tiếp (tránh PRIMARY KEY conflict)
   Sqid = "0";
   db_exec1(test1_db, "SELECT * FROM attendance ORDER BY id DESC LIMIT 1");
   int startId = Sqid.toInt() + 1;
 
+  // Bulk insert dùng SQLite TRANSACTION — 10-20× nhanh hơn 1 INSERT/lần.
+  // KHÔNG có transaction: 100 inserts mất ~15s → watchdog trip.
+  db_exec(test1_db, "BEGIN TRANSACTION");
   int success = 0;
   for (int i = 0; i < count; i++) {
     int id = startId + i;
-    // Không giới hạn 50 ở đây — chỉ là DB rows để test UI/pagination.
-    // Sensor vẫn max 50 fingerprints khi enroll thật.
     String sql = "INSERT OR IGNORE INTO attendance(id,eid,employee_name,employee_email,position,fpid) values(";
     sql += String(id);
     sql += ",'EMP" + String(1000 + id);
@@ -565,12 +701,18 @@ static void seedTestData() {
     sql += String(id);
     sql += ")";
     if (db_exec(test1_db, sql.c_str()) == SQLITE_OK) success++;
+    // Feed watchdog mỗi 64 records — chống loopTask hang nếu count lớn
+    if ((i & 0x3F) == 0) esp_task_wdt_reset();
   }
+  db_exec(test1_db, "COMMIT");
+  esp_task_wdt_reset();
 
   String resp = "Inserted " + String(success) + " test records (id " + String(startId);
   resp += " to " + String(startId + success - 1) + "). Go back to dashboard to see them.";
   server.send(200, "text/plain", resp);
 }
+#endif  // ===== end TEST endpoint =====
+
 static void newRecordTable() {
   if (!is_authentified()) {
     server.sendHeader("Location", "/login");
@@ -660,27 +802,27 @@ static void Settings() {
 }
 
 // ===== Backup / Restore / Sync =====
-// uploadfs ghi đè toàn bộ LittleFS → mất test1.db (chỉ chứa name/email/fpid của user).
+// uploadfs ghi đè toàn bộ LittleFS → mất backup.db (chỉ chứa name/email/fpid của user).
 // Template vân tay nằm trong flash của FPM383C, KHÔNG bị uploadfs động đến.
-// → Backup test1.db trước uploadfs, restore sau, sensor templates vẫn nguyên.
+// → Backup backup.db trước uploadfs, restore sau, sensor templates vẫn nguyên.
 
-// GET /backup — download test1.db (yêu cầu login)
+// GET /backup — download backup.db (yêu cầu login)
 static void backupDb() {
   if (!is_authentified()) { server.send(401, "text/plain", "Unauthorized"); return; }
-  if (!LittleFS.exists("/test1.db")) {
-    server.send(404, "text/plain", "test1.db not found");
+  if (!LittleFS.exists("/backup.db")) {
+    server.send(404, "text/plain", "backup.db not found");
     return;
   }
-  File f = LittleFS.open("/test1.db", "r");
+  File f = LittleFS.open("/backup.db", "r");
   if (!f) { server.send(500, "text/plain", "Open failed"); return; }
-  server.sendHeader("Content-Disposition", "attachment; filename=\"test1.db\"");
+  server.sendHeader("Content-Disposition", "attachment; filename=\"backup.db\"");
   server.sendHeader("Cache-Control", "no-store");
   server.streamFile(f, "application/octet-stream");
   f.close();
-  Serial.println("[Backup] test1.db downloaded");
+  Serial.println("[Backup] backup.db downloaded");
 }
 
-// POST /restore — upload file, ghi tạm /test1.db.new, swap khi xong, restart.
+// POST /restore — upload file, ghi tạm /backup.db.new, swap khi xong, restart.
 // Ghi tạm trước rồi rename để tránh corrupt nếu upload đứt giữa chừng.
 static File restoreFile_;
 static bool restoreOk_ = false;
@@ -693,8 +835,8 @@ static void handleRestoreUpload() {
     restoreOk_ = false;
     restoreErr_ = "";
     if (!is_authentified()) { restoreErr_ = "Unauthorized"; return; }
-    if (LittleFS.exists("/test1.db.new")) LittleFS.remove("/test1.db.new");
-    restoreFile_ = LittleFS.open("/test1.db.new", "w");
+    if (LittleFS.exists("/backup.db.new")) LittleFS.remove("/backup.db.new");
+    restoreFile_ = LittleFS.open("/backup.db.new", "w");
     if (!restoreFile_) { restoreErr_ = "Open failed"; return; }
     Serial.print("[Restore] receiving: "); Serial.println(up.filename);
   } else if (up.status == UPLOAD_FILE_WRITE) {
@@ -707,7 +849,7 @@ static void handleRestoreUpload() {
     }
   } else if (up.status == UPLOAD_FILE_ABORTED) {
     if (restoreFile_) restoreFile_.close();
-    LittleFS.remove("/test1.db.new");
+    LittleFS.remove("/backup.db.new");
     restoreErr_ = "Upload aborted";
   }
 }
@@ -724,8 +866,8 @@ static void handleRestoreDone() {
     sqlite3_close(test1_db);
     test1_db = nullptr;
   }
-  if (LittleFS.exists("/test1.db")) LittleFS.remove("/test1.db");
-  LittleFS.rename("/test1.db.new", "/test1.db");
+  if (LittleFS.exists("/backup.db")) LittleFS.remove("/backup.db");
+  LittleFS.rename("/backup.db.new", "/backup.db");
   Serial.println("[Restore] swapped, restarting");
   server.send(200, "text/plain", "OK_RESTART");
   delay(500);
@@ -836,14 +978,24 @@ void webServer_Init() {
 
     // Khai báo các Route
     server.on("/", handleRoot);
+    // Clean URL cho từng section — đều serve db.html (wrapper), JS tự load section theo path.
+    server.on("/enroll", handleRoot);
+    server.on("/settings", handleRoot);
+    server.on("/account", handleRoot);
+    server.on("/database", handleRoot);
     server.on("/login", handleLogin);
     server.on("/insert", insertRecord);
     server.on("/delete", deleteRecord);
+  server.on("/edit_user", [](){ if (!is_authentified()) { server.sendHeader("Location","/login"); server.send(301); return; } loadFromSPIFFS("/EditUser.html"); });
+  server.on("/get_user", getUser);              // GET JSON 1 record cho modal Edit
+  server.on("/update_user", updateUser);        // POST cập nhật fields user
+  server.on("/reenroll", reenrollFingerprint);  // re-enroll vân tay cho fpid đã có
   server.on("/show", showRecords);
   server.on("/newRecordTable", newRecordTable);
   server.on("/Settings", Settings);
   server.on("/settings", Settings);  // alias chữ thường cho dễ gõ
   server.on("/ApSetup.html", serveApSetup);  // truy cập trực tiếp khi gõ URL
+  server.on("/i18n.js", serveI18nJs);        // language toggle script (Settings page)
   server.on("/save", save);
   server.on("/getssid", getssid);
   server.on("/getfpid", getfpid);
@@ -854,13 +1006,15 @@ void webServer_Init() {
   server.on("/wifi_status", wifiStatus);  // poll trạng thái connect WiFi cho ApSetup
   server.on("/restart", restartDevice);   // user bấm Finish sau khi xem IP
   server.on("/getnetinfo", getNetInfo);   // IP + Gateway hiện tại cho Settings auto-fill
-  server.on("/seedtest", seedTestData);   // insert N dummy users để test UI (yêu cầu login)
+  server.on("/storage", storageInfo);     // dung lượng FS + backlog offline (JSON)
+  // ===== TEST endpoint — DISABLED for production go-live =====
+  // server.on("/seedtest", seedTestData);   // insert N dummy users để test UI (yêu cầu login)
   server.on("/Account", accountPage);     // trang Account
   server.on("/account", accountPage);
   server.on("/getwwwid", getWwwid);       // username hiện tại
   server.on("/update_account", updateAccount); // đổi username/password
-  server.on("/backup", backupDb);              // download test1.db trước uploadfs
-  server.on("/restore", HTTP_POST, handleRestoreDone, handleRestoreUpload); // upload restore test1.db
+  server.on("/backup", backupDb);              // download backup.db trước uploadfs
+  server.on("/restore", HTTP_POST, handleRestoreDone, handleRestoreUpload); // upload restore backup.db
   server.on("/sync_check", syncCheck);          // so sánh DB vs sensor templates
     server.onNotFound(handleNotFound);
 

@@ -7,3 +7,4 @@
 # DB không commit — runtime data, được bootstrap tự động bằng CREATE TABLE IF NOT EXISTS.
 # Backup/restore qua web UI (page Account), không qua repo.
 data/test1.db
+data/backup.db

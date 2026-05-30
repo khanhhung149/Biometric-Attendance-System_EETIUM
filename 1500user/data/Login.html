@@ -48,16 +48,52 @@
  
 	</script>
 
+	<script>
+	// Inline i18n cho Login page — không phụ thuộc external resource
+	(function(){
+	  var T={
+	    "Biometric Database Server":{vi:"Máy chủ Vân tay EETIUM",en:"Biometric Database Server"},
+	    "Login":{vi:"Đăng nhập",en:"Login"},
+	    "Username":{vi:"Tên đăng nhập",en:"Username"},
+	    "Password":{vi:"Mật khẩu",en:"Password"}
+	  };
+	  function getLang(){return localStorage.getItem('eetium_lang')||'vi';}
+	  function apply(){
+	    var lang=getLang();
+	    document.querySelectorAll('button,label,h1,h2,h3,h4,h5,.brand-title,.form-label,.card-title,a').forEach(function(el){
+	      if(el.children.length>0) return;
+	      var key=el.getAttribute('data-i18n-key');
+	      if(!key){var t=(el.textContent||'').trim();if(T[t]){key=t;el.setAttribute('data-i18n-key',key);}}
+	      if(key&&T[key]&&T[key][lang]!==undefined) el.textContent=T[key][lang];
+	    });
+	    document.querySelectorAll('input[placeholder]').forEach(function(el){
+	      var key=el.getAttribute('data-i18n-ph-key');
+	      if(!key){var t=(el.getAttribute('placeholder')||'').trim();if(T[t]){key=t;el.setAttribute('data-i18n-ph-key',key);}}
+	      if(key&&T[key]&&T[key][lang]!==undefined) el.setAttribute('placeholder',T[key][lang]);
+	    });
+	  }
+	  function init(){apply();}
+	  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+	  else init();
+	  window.i18n={apply:apply,getLang:getLang,setLang:function(l){localStorage.setItem('eetium_lang',l);location.reload();}};
+	})();
+	</script>
 <body>
     <!-- Start: Login form (responsive, matches Settings) -->
     <style>
-      body { margin: 0; background: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; }
+      body { margin: 0; background: #f8f9fa; min-height: 100vh; display: flex; flex-direction: column; font-family: Arial, Helvetica, sans-serif;}
       .settings-wrap { flex: 1; }
       .page-footer { margin-top: auto; }
-      .db-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; background: #696969; color: #fff; border-radius: 0 0 12px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-      .db-header img { height: 36px; width: auto; background: #fff; border-radius: 6px; padding: 4px; }
-      .db-header .brand-title { font-size: 18px; font-weight: 600; margin: 0; }
-      @media (max-width: 575px) { .db-header { justify-content: center; } .db-header .brand-title { font-size: 16px; } }
+      .db-header { padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #696969; color: #fff; border-radius: 0 0 12px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+      .db-header .brand { display: flex; align-items: center; gap: 12px; }
+      .db-header .brand img { height: 36px; width: auto; background: #fff; border-radius: 6px; padding: 4px; }
+      .db-header .brand-title { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: 0.2px; }
+      .db-header .lang-btns { display: flex; gap: 6px; }
+      .db-header .lang-btns button { border:1px solid rgba(255,255,255,.3); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .18s; min-width: 54px; }
+      .db-header .lang-btns button.active { background:#1a73e8; color:#fff; border-color:#1a73e8; box-shadow: 0 3px 8px rgba(26,115,232,.45); transform: translateY(-1px); }
+      .db-header .lang-btns button.inactive { background:rgba(255,255,255,.18); color:#ddd; box-shadow: inset 0 2px 4px rgba(0,0,0,.2); opacity:.7; }
+      .db-header .lang-btns button.inactive:hover { opacity:1; background: rgba(255,255,255,.32); }
+      @media (max-width: 575px) { .db-header { flex-direction: column; } .db-header .brand-title { font-size: 18px; } }
       .settings-wrap { padding: 40px 12px 24px; }
       .settings-card { max-width: 420px; margin: 0 auto; background: #fff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.08); padding: 28px; }
       .settings-card .form-label { font-weight: 500; color: #333; margin-bottom: 4px; font-size: 14px; }
@@ -67,9 +103,26 @@
       .settings-card .btn { height: 48px; border-radius: 8px; font-weight: 500; font-size: 15px; min-width: 160px; background: var(--bs-blue); border-color: var(--bs-blue); color: #fff; }
     </style>
     <div class="db-header">
-      <img src="data:image/png;base64,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" alt="Logo">
-      <h2 class="brand-title">Biometric Database Server</h2>
+      <div class="brand">
+        <img src="data:image/png;base64,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" alt="Logo">
+        <h2 class="brand-title">Biometric Database Server</h2>
+      </div>
+      <div class="lang-btns">
+        <button id="btnLangVi" type="button" onclick="localStorage.setItem('eetium_lang','vi');location.reload();">VI</button>
+        <button id="btnLangEn" type="button" onclick="localStorage.setItem('eetium_lang','en');location.reload();">EN</button>
+      </div>
     </div>
+    <script>
+      (function(){
+        var cur = localStorage.getItem('eetium_lang') || 'vi';
+        var vi = document.getElementById('btnLangVi');
+        var en = document.getElementById('btnLangEn');
+        if (vi && en) {
+          vi.classList.add(cur === 'vi' ? 'active' : 'inactive');
+          en.classList.add(cur === 'en' ? 'active' : 'inactive');
+        }
+      })();
+    </script>
     <div class="settings-wrap">
       <div class="settings-card">
         <form>

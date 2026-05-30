@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
 #include "display.h"
 #include "web_server.h"
 #include "storage.h"
@@ -12,7 +13,13 @@
 
 
 unsigned long lastWifiCheck = 0;
-const unsigned long WIFI_CHECK_INTERVAL = 1800000;
+// Check mỗi 30s (backup cho ESP32 auto-reconnect). Trước đây 30 phút → quá chậm.
+const unsigned long WIFI_CHECK_INTERVAL = 30000;
+
+// Watchdog timer cho main loop. Nếu loop bị hang > timeout giây → panic + reset.
+// 15s đủ rộng cho: fingerprint scan (~3s), reset button (5s threshold), SQLite ops.
+// NetTask KHÔNG add vào WDT vì HTTPS có thể chặn 25s legitimately (đã có STUCK detect riêng).
+#define WDT_TIMEOUT_SEC 15
 
 void setup(){
   Serial.begin(115200);
@@ -56,23 +63,47 @@ void setup(){
   beepBuzzer(2, 100);
   delay(1000);
   display_ShowMainScreen(rtc_GetDateString(), rtc_GetTimeString(), wifi_IsConnected());
+
+  // Bật watchdog SAU khi setup xong (init có thể chậm hơn 15s).
+  esp_task_wdt_init(WDT_TIMEOUT_SEC, true);  // true = panic + reset khi timeout
+  esp_task_wdt_add(NULL);                    // add task hiện tại (Arduino loop)
+  Serial.printf("[WDT] enabled, timeout=%ds\n", WDT_TIMEOUT_SEC);
 }
 
 void loop(){
+  esp_task_wdt_reset();  // feed watchdog mỗi vòng loop (chống hang)
   wifi_HandleDNS();
   webServer_HandleClient();
   resetButton_Task();
   fingerprint_Task();
+  // WiFi recovery: setAutoReconnect(true) đã tự reconnect ngầm trong WiFi stack.
+  // KHÔNG gọi WiFi.disconnect()/reconnect() ở đây — chúng BLOCK loopTask >15s
+  // trong lúc reconnect storm → watchdog abort, và xung đột với auto-reconnect.
+  // Chỉ theo dõi: nếu mất WiFi liên tục > 5 phút → restart sạch (backlog persistent).
+  static unsigned long wifiLostSince = 0;
   if (millis() - lastWifiCheck > WIFI_CHECK_INTERVAL) {
-    if (!wifi_IsConnected()) {
-      Serial.println("WiFi disconnected! Attempting to reconnect...");
-      wifi_Reconnect();
-    }
     lastWifiCheck = millis();
-
+    if (!wifi_IsConnected()) {
+      if (wifiLostSince == 0) wifiLostSince = millis();
+      Serial.println("WiFi down — auto-reconnect handling in background...");
+      if (millis() - wifiLostSince > 300000UL) {  // 5 phút
+        Serial.println("WiFi down > 5min — restarting to reset WiFi stack");
+        delay(200);
+        ESP.restart();
+      }
+    } else {
+      wifiLostSince = 0;  // đã kết nối lại → reset bộ đếm
+    }
   }
   static unsigned long lastDisplayUpdate = 0;
-  if(millis() - lastDisplayUpdate >= 1000){
+  static bool wasHolding = false;
+  bool holding = resetButton_IsHolding();
+  // Khi đang giữ nút reset, reset_button.cpp tự vẽ countdown — main loop không ghi đè.
+  // Khi vừa thả (transition true→false), ép redraw ngay để khỏi delay ~1s.
+  bool justReleased = wasHolding && !holding;
+  wasHolding = holding;
+
+  if(!holding && (justReleased || millis() - lastDisplayUpdate >= 1000)){
       if (wifi_IsAPMode()) {
           // SSID dài 27 chars → tách 2 dòng để khỏi clip trên OLED 128px.
           // Nếu STA đã connect (AP_STA mode sau khi save) show STA IP, không phải AP IP.

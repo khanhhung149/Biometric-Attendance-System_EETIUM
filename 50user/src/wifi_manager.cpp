@@ -89,7 +89,11 @@ void wifi_InitAndConnect(){
     }
 
     WiFi.mode(WIFI_STA);
-    
+    // Bật auto-reconnect: WiFi stack ESP32 tự động kết nối lại NGAY khi mất sóng,
+    // chạy ngầm không cần loop polling. persistent(true) lưu credentials để reconnect nhanh.
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
+
     // dhcpcheck: "2" = Manual IP từ Settings.html (aip dropdown value), "off" = legacy
     if ((dhcpcheck == "2" || dhcpcheck == "off") && ip_ != "" && gateway_ != "") {
         IPAddress local_IP;
