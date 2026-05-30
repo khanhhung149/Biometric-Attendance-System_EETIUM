@@ -1,49 +1,69 @@
 /**
  * EETIUM Biometric Attendance — Google Apps Script backend
  *
- * Cả 2 version firmware ESP32 (50user/1500user) gửi batch attendance qua
- * HTTPS POST tới script này. Script ghi vào Google Sheet, dedup theo
- * (date + empid), gộp nhiều lượt trong cùng ngày vào 1 row (Time 1..N).
+ * Cả 2 firmware ESP32 (50user/1500user) gửi batch attendance qua HTTPS POST
+ * tới script này. Script ghi vào Google Sheet, dedup theo (date + empid),
+ * gộp nhiều lượt trong cùng ngày vào 1 row (Time 1..N).
  *
- * ===== TRIỂN KHAI LẦN ĐẦU =====
- * 1. Tạo Google Sheet mới.
- *      - Mở sheet → URL dạng .../spreadsheets/d/<SHEET_ID>/edit
- *      - Copy đoạn <SHEET_ID>.
- * 2. Vào script.google.com → New project → dán TOÀN BỘ code này → Save.
- * 3. SỬA 2 biến ở đầu file: sheet_id (dán ID vừa copy) + sheet_name (tên tab).
+ * ===== TRIỂN KHAI — KHÔNG CẦN SỬA CODE =====
+ * 1. Mở Google Sheet đích (tạo mới hoặc dùng sẵn có).
+ * 2. Trong Sheet: Extensions → Apps Script (tạo project mới gắn vào Sheet).
+ * 3. Dán TOÀN BỘ code này vào → Save (Ctrl+S).
  * 4. Deploy → New deployment → type "Web app":
  *      - Execute as:    Me
  *      - Who has access: Anyone
  *    → Deploy → Authorize → copy URL dạng
  *      https://script.google.com/macros/s/<GSID>/exec
- * 5. Trên ESP32: vào trang /settings → dán URL (firmware tự extract <GSID>)
- *    vào ô "Google Script ID" → Save.
+ * 5. ESP32 → /settings → dán URL vào ô "Google Script ID" → Save. Xong.
  *
- * ===== KHI SỬA CODE (re-deploy) =====
- * Save → Deploy → Manage deployments → biểu tượng bút chì (sửa) →
- * Version: "New version" → Deploy. URL KHÔNG đổi → ESP32 không cần config lại.
+ * Script tự dùng Sheet nó được gắn vào (bound script). Tự tạo tab tên
+ * "attendance" nếu chưa có. KHÔNG cần biết Sheet ID hay sửa biến nào.
  *
- * ===== KIỂM TRA TRÙNG LẶP THỦ CÔNG =====
- * Trong editor, chọn hàm checkDuplicates → Run → View → Logs để kiểm tra
- * dữ liệu trùng. Dùng khi nghi ngờ ESP gửi double-scan.
+ * ===== STANDALONE MODE (tùy chọn) =====
+ * Nếu tạo script tại script.google.com (không gắn vào Sheet) — ví dụ 1
+ * script chung cho nhiều Sheet: điền SHEET_ID bên dưới (lấy từ URL
+ * Sheet dạng .../d/<SHEET_ID>/edit). Để TRỐNG = dùng bound mode.
+ *
+ * ===== RE-DEPLOY KHI SỬA CODE =====
+ * Save → Deploy → Manage deployments → biểu tượng bút chì → Version
+ * "New version" → Deploy. URL KHÔNG đổi → ESP32 không cần config lại.
+ *
+ * ===== KIỂM TRA TRÙNG LẶP =====
+ * Editor → chọn hàm checkDuplicates → Run → View → Logs.
  *
  * ===== HEADER SHEET (tự bootstrap) =====
  * Lần đầu chạy, script tự thêm 9 cột:
- *   Date | Employee ID | Name | Email | Position | Time 1 | Time 2 | Time 3 | Time 4
+ *   Date | Employee ID | Name | Email | Position | Time 1..Time 4
  * Mỗi ngày 1 row/empid; các lượt quét trong ngày fill Time 1, Time 2, ...
  * (mở rộng tự động khi >4 lượt).
  *
  * ===== ĐỊNH DẠNG NGÀY =====
- * Firmware từ commit go-live gửi date dạng "29-05-2026" (DD-MM-YYYY).
- * Sheet đang chạy với firmware cũ có thể có date "Day_29May2026". Nếu trộn
- * 2 format trong cùng Sheet, dedup sẽ không nhận ra row trùng.
- * Khuyến nghị: dùng Sheet TRỐNG mới khi đổi firmware để tránh lẫn 2 format.
+ * Firmware go-live gửi date dạng "29-05-2026" (DD-MM-YYYY). Sheet đang
+ * chạy với firmware cũ có thể có "Day_29May2026". KHÔNG trộn 2 format
+ * trong cùng Sheet → dedup hỏng. Dùng Sheet TRỐNG mới khi đổi firmware.
  */
 
-// =================== CẦN SỬA ===================
-var sheet_id   = "1cJIiJfPAzWQJhitWETJoqJ2PcoDmDZJCCZzKj0AC5mw";  // SỬA: Sheet ID lấy từ URL Google Sheet
-var sheet_name = "attendance";                                     // SỬA (nếu cần): tên tab trong Sheet
-// ===============================================
+// ===== TÙY CHỌN — mặc định để TRỐNG (dùng Sheet đã bind) =====
+var SHEET_ID   = "";              // Chỉ điền khi standalone mode (xem header)
+var SHEET_NAME = "attendance";    // Tên tab; tự tạo nếu chưa có
+// ============================================================
+
+// Lấy sheet đích — bound mode (mặc định) hoặc standalone qua SHEET_ID.
+// Tự tạo tab nếu chưa có nên Sheet trống cũng chạy được ngay.
+function getTargetSheet_() {
+  var ss = SHEET_ID
+    ? SpreadsheetApp.openById(SHEET_ID)
+    : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error(
+      "Không tìm thấy Sheet. Cách 1: mở Sheet → Extensions → Apps Script " +
+      "(bound mode). Cách 2: điền SHEET_ID ở đầu file (standalone mode)."
+    );
+  }
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+  return sheet;
+}
 
 function doGet(e) {
   var lock = LockService.getScriptLock();
@@ -54,10 +74,9 @@ function doGet(e) {
   }
 
   try {
-    var ss = SpreadsheetApp.openById(sheet_id);
-    var sheet = ss.getSheetByName(sheet_name);
+    var sheet = getTargetSheet_();
 
-    // Bootstrap header
+    // Bootstrap header — chỉ 1 lần khi sheet còn trống
     if (sheet.getRange("A1").isBlank()) {
       sheet.appendRow(["Date", "Employee ID", "Name", "Email", "Position",
                        "Time 1", "Time 2", "Time 3", "Time 4"]);
@@ -77,7 +96,7 @@ function doGet(e) {
 
     // ===== LEGACY single-record fallback (giữ tương thích query string) =====
     if (e.parameter.date) {
-      var resp = processBatch(sheet, [{
+      return processBatch(sheet, [{
         date: e.parameter.date,
         time: e.parameter.time,
         empid: e.parameter.empid,
@@ -85,7 +104,6 @@ function doGet(e) {
         empemail: e.parameter.empemail,
         emppos: e.parameter.emppos
       }]);
-      return resp;
     }
 
     return ContentService.createTextOutput("No data");
@@ -95,8 +113,8 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  // ESP gửi POST với Content-Type: application/x-www-form-urlencoded, body "batch=<urlencoded-json>".
-  // GAS auto-parse vào e.parameter.batch → doGet handle như nhau.
+  // ESP gửi POST Content-Type: application/x-www-form-urlencoded, body
+  // "batch=<urlencoded-json>". GAS auto-parse vào e.parameter.batch.
   return doGet(e);
 }
 
@@ -171,8 +189,7 @@ function processBatch(sheet, records) {
 
 // Utility: scan sheet tìm duplicate row + duplicate time. Chạy từ editor để verify.
 function checkDuplicates() {
-  var ss = SpreadsheetApp.openById(sheet_id);
-  var sheet = ss.getSheetByName(sheet_name);
+  var sheet = getTargetSheet_();
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
   if (lastRow < 2) {
