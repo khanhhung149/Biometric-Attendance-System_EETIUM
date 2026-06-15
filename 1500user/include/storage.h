@@ -9,6 +9,9 @@
 bool storage_Init();
 void storage_LogUsage();
 String storage_UsageJson();  // JSON dung lượng FS + backlog cho endpoint /storage
+// Kiểm tra định kỳ low watermark — gọi từ main loop mỗi 5 phút.
+// Trả: 0 = OK, 1 = warning (>80%), 2 = critical (>95%).
+int storage_CheckLowWatermark();
 String readFile(fs::FS &fs, const char * path);
 void writeFile(fs::FS &fs, const char * path, const char * message);
 int db_exec1(sqlite3 *db, const char *sql);

@@ -31,33 +31,33 @@ void setup(){
   display_ShowLogo();
   delay(2000);
 
-  display_ShowMessage("Init Storage...");
+  display_ShowMessage("Khởi tạo bộ nhớ...");
   if (!storage_Init()) {
     Serial.println("Storage/Database Init Failed!");
   }
   storage_LogUsage();
   rtc_Init();
-  display_ShowMessage("Init Sensor...");
+  display_ShowMessage("Khởi tạo cảm biến...");
   if (!fingerprint_Init()) {
-    display_ShowError("Sensor Error");
+    display_ShowError("Lỗi cảm biến");
    // while (1) { delay(100); } // Dừng hệ thống nếu không có cảm biến
   } else {
     // TODO: XÓA DÒNG NÀY sau khi sensor đã sạch và enroll lại OK
     // fingerprint_DeleteAll();
 
   }
-  display_ShowMessage("Connecting WiFi...");
+  display_ShowMessage("Đang kết nối WiFi...");
 
   wifi_InitAndConnect();
 
   if (wifi_IsConnected()) {
     rtc_SyncWithNTP(tzHours_);  // múi giờ đọc từ /tz.txt
   }
-  display_ShowMessage("Start WebServer");
+  display_ShowMessage("Khởi động web...");
   webServer_Init();
   fingerprint_StartBatchTask();
   resetButton_Init();
-  display_ShowMessage("System Ready!");
+  display_ShowMessage("Sẵn sàng!");
   // Beep 2 lần xác nhận hệ thống khởi động xong
   extern void beepBuzzer(int, int);
   beepBuzzer(2, 100);
@@ -109,7 +109,7 @@ void loop(){
           // Nếu STA đã connect (AP_STA mode sau khi save) show STA IP, không phải AP IP.
           display.clearBuffer();
           display.setFont(u8g2_font_ncenB08_tr);
-          oledDisplayCenter("WiFi Setup Mode", 0, 11);
+          oledDisplayCenter("Cấu hình WiFi", 0, 11);
           String apSsid = wifi_GetAPSSID();
           int sp = apSsid.indexOf(' ');
           String l1 = (sp > 0) ? apSsid.substring(0, sp) : apSsid;

@@ -165,12 +165,16 @@ function processBatch(sheet, records) {
       row[insertCol] = r.time;
       added++;
     } else {
-      // Row mới
+      // Row mới — GIỮ SHALLOW COPY trong allData để vòng dedup sau (cùng batch
+      // mở rộng cột Time N) KHÔNG ảnh hưởng newRows[i].
+      // Bug cũ: allData.push(newRow) share reference → batch có ≥2 record cùng
+      // (date,empid) làm newRow length > 6 → setValues(newRows, 6) fail
+      // "Số cột dữ liệu 10 không khớp dải ô 6".
       var newRow = [r.date, r.empid, r.empname || "", r.empemail || "",
                     r.emppos || "", r.time || ""];
       newRows.push(newRow);
       rowMap[key] = allData.length;
-      allData.push(newRow);
+      allData.push(newRow.slice());    // COPY — không share ref với newRow
       added++;
     }
   }
@@ -185,6 +189,99 @@ function processBatch(sheet, records) {
   }
 
   return ContentService.createTextOutput("OK added=" + added + " skipped=" + skipped);
+}
+
+// ============================================================
+// CUSTOM MENU — hiển thị khi mở Sheet (cần authorize 1 lần đầu)
+// ============================================================
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🗓️ EETIUM')
+    .addItem('📦 Lưu trữ & tạo Sheet chấm công mới', 'archiveAndReset')
+    .addSeparator()
+    .addItem('🔍 Kiểm tra trùng lặp', 'checkDuplicates')
+    .addToUi();
+}
+
+// ============================================================
+// ARCHIVE: đổi tên sheet hiện tại theo range ngày + tạo sheet "attendance" mới.
+// Tên archive: "attendance_DD-MM-YYYY_DD-MM-YYYY" (ngày đầu → ngày cuối).
+// Nếu trùng tên (tạo cùng range 2 lần) → append "_v2", "_v3"...
+// ============================================================
+function archiveAndReset() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+
+  if (!sheet) {
+    ui.alert('Không tìm thấy sheet "' + SHEET_NAME + '"');
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    ui.alert('Sheet rỗng — không có gì để lưu trữ');
+    return;
+  }
+
+  // Quét cột A (Date) tìm min/max date. Format firmware gửi: DD-MM-YYYY.
+  // Convert sang YYYY-MM-DD nội bộ để so sánh string-sort = chronological.
+  var dates = sheet.getRange(2, 1, lastRow - 1, 1).getDisplayValues();
+  var minIso = null, maxIso = null;
+  var minStr = '', maxStr = '';
+  for (var i = 0; i < dates.length; i++) {
+    var d = (dates[i][0] || '').toString().trim();
+    if (!d) continue;
+    var parts = d.split('-');
+    if (parts.length !== 3) continue;
+    // parts = [DD, MM, YYYY] → iso = YYYY-MM-DD
+    var iso = parts[2] + '-' + parts[1] + '-' + parts[0];
+    if (!minIso || iso < minIso) { minIso = iso; minStr = d; }
+    if (!maxIso || iso > maxIso) { maxIso = iso; maxStr = d; }
+  }
+
+  if (!minIso) {
+    ui.alert('Không parse được ngày trong cột A (cần format DD-MM-YYYY)');
+    return;
+  }
+
+  // Tên archive — tránh trùng nếu user archive cùng range 2 lần.
+  var baseName = 'attendance_' + minStr + '_' + maxStr;
+  var archiveName = baseName;
+  var counter = 2;
+  while (ss.getSheetByName(archiveName)) {
+    archiveName = baseName + '_v' + counter;
+    counter++;
+  }
+
+  // Confirm dialog
+  var resp = ui.alert(
+    'Lưu trữ Sheet chấm công',
+    'Sheet "' + SHEET_NAME + '" có ' + (lastRow - 1) + ' bản ghi (' +
+    minStr + ' → ' + maxStr + ') sẽ được:\n\n' +
+    '1. Đổi tên thành: "' + archiveName + '"\n' +
+    '2. Tạo Sheet "' + SHEET_NAME + '" MỚI trống\n\n' +
+    'Mọi chấm công tiếp theo sẽ ghi vào Sheet mới.\nTiếp tục?',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (resp !== ui.Button.OK) return;
+
+  // Thực hiện archive + tạo sheet mới
+  sheet.setName(archiveName);
+  var newSheet = ss.insertSheet(SHEET_NAME, 0);  // chèn ở vị trí đầu tab list
+  newSheet.appendRow(["Date", "Employee ID", "Name", "Email", "Position",
+                      "Time 1", "Time 2", "Time 3", "Time 4"]);
+  newSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#d9ead3");
+  newSheet.setFrozenRows(1);
+  ss.setActiveSheet(newSheet);
+
+  ui.alert(
+    'Hoàn tất ✅',
+    'Sheet cũ đã đổi tên: "' + archiveName + '"\n' +
+    'Sheet "' + SHEET_NAME + '" mới đã được tạo (trống).\n\n' +
+    'Tổng ' + (lastRow - 1) + ' bản ghi từ ' + minStr + ' đến ' + maxStr +
+    ' đã được lưu trữ.\nESP32 không cần config lại — sẽ tự ghi vào sheet mới.'
+  );
 }
 
 // Utility: scan sheet tìm duplicate row + duplicate time. Chạy từ editor để verify.

@@ -10,6 +10,10 @@
 #include "rtc_manager.h"
 #include "fingerprint.h"
 #include "reset_button.h"
+#include "qr_button.h"
+#include "flash_log.h"
+#include "weather.h"
+#include "i18n_text.h"
 
 
 unsigned long lastWifiCheck = 0;
@@ -32,33 +36,70 @@ void setup(){
   display_ShowLogo();
   delay(2000);
 
-  display_ShowMessage("Init Storage...");
+
+  // Storage mount LittleFS + open SQLite. Không hiện message OLED vì:
+  //   1. Chạy nhanh (~100-500ms) — user không kịp đọc
+  //   2. Trước storage_Init chưa có /lang.txt → message sẽ luôn VI dù user set EN
+  // Sau storage_Init xong mới load lang chính xác → các message sau dịch đúng.
   if (!storage_Init()) {
     Serial.println("Storage/Database Init Failed!");
   }
   storage_LogUsage();
-  rtc_Init();
-  display_ShowMessage("Init Sensor...");
-  if (!fingerprint_Init()) {
-    display_ShowError("Sensor Error");
-   // while (1) { delay(100); } // Dừng hệ thống nếu không có cảm biến
-  } else {
-    // TODO: XÓA DÒNG NÀY sau khi sensor đã sạch và enroll lại OK
-    //  fingerprint_DeleteAll();
-
+  i18n_Init();   // Load /lang.txt — LittleFS đã mount qua storage_Init.
+  // OTA Bearer token đã DEPRECATE — thay bằng TOTP 2FA. Auto-xoá file cũ nếu còn
+  // để OTA flow không yêu cầu token nữa (chỉ cần cookie + TOTP).
+  // Re-enable: bỏ dòng này + uncomment UI row "Token OTA" trong Account.html.
+  if (LittleFS.exists("/ota_token.hash")) LittleFS.remove("/ota_token.hash");
+  // External SPI flash (W25Q128) cho log lịch sử ring buffer.
+  // Init song hành cùng storage_Init — không fatal nếu thiếu chip (sẽ disable feature).
+  bool flashLogOk = flashLog_Init();
+  if (!flashLogOk) {
+    Serial.println("[Main] flash_log disabled — kiểm tra đấu nối W25Q128");
   }
-  display_ShowMessage("Connecting WiFi...");
+  rtc_Init();
+  // In stats SAU rtc_Init để localtime_r() đã có TZ → hiện giờ địa phương,
+  // không phải UTC. Trước đây print ngay sau flashLog_Init khiến Oldest/Newest
+  // lệch -7h so với Sheet → tưởng RTC sai (thực ra chỉ chưa áp TZ).
+  if (flashLogOk) {
+    flashLog_PrintStats();
+  }
+  // === DEV RESCUE: wipe TOTP để escape lock-out. UNCOMMENT 2 dòng dưới,
+  //     flash firmware, boot xong → COMMENT LẠI ngay + flash lần 2. ===
+  // if (LittleFS.exists("/totp.cfg")) LittleFS.remove("/totp.cfg");
+  // if (LittleFS.exists("/totp.recovery")) LittleFS.remove("/totp.recovery");
+
+  display_ShowMessage(TR("Khởi tạo cảm biến...", "Initializing sensor..."));
+  if (!fingerprint_Init()) {
+    display_ShowError(TR("Lỗi cảm biến", "Sensor error"));
+    // while (1) { delay(100); }    // DEV: bật để chặn boot khi không có sensor
+  } else {
+    // === DEV maintenance tools — UNCOMMENT khi cần, COMMIT thì comment lại ===
+    // fingerprint_DeleteAll();     // Wipe toàn bộ template trên sensor (DESTRUCTIVE)
+    // flashLog_EraseAll();         // Clear W25Q128 ring buffer (~2 phút, có feed WDT)
+  }
+  display_ShowMessage(TR("Đang kết nối WiFi...", "Connecting WiFi..."));
 
   wifi_InitAndConnect();
 
   if (wifi_IsConnected()) {
     rtc_SyncWithNTP(tzHours_);  // múi giờ đọc từ /tz.txt
   }
-  display_ShowMessage("Start WebServer");
+  // Sync orphan sensor templates nếu vừa restore DB (replace mode set flag trước restart).
+  if (LittleFS.exists("/post_restore_sync.flag")) {
+    Serial.println("[Boot] post-restore sync flag detected → cleaning orphan templates");
+    display_ShowMessage(TR("Đồng bộ sensor...", "Syncing sensor..."));
+    int n = fingerprint_SyncOrphanCleanup();
+    Serial.printf("[Boot] orphan sync: %d templates removed\n", n);
+    LittleFS.remove("/post_restore_sync.flag");
+  }
+
+  display_ShowMessage(TR("Khởi động web...", "Starting web..."));
   webServer_Init();
   fingerprint_StartBatchTask();
   resetButton_Init();
-  display_ShowMessage("System Ready!");
+  qrButton_Init();
+  weather_Init();
+  display_ShowMessage(TR("Sẵn sàng!", "Ready!"));
   // Beep 2 lần xác nhận hệ thống khởi động xong
   extern void beepBuzzer(int, int);
   beepBuzzer(2, 100);
@@ -76,6 +117,8 @@ void loop(){
   wifi_HandleDNS();
   webServer_HandleClient();
   resetButton_Task();
+  qrButton_Task();
+  weather_Task();
   fingerprint_Task();
   // WiFi recovery: setAutoReconnect(true) đã tự reconnect ngầm trong WiFi stack.
   // KHÔNG gọi WiFi.disconnect()/reconnect() ở đây — chúng BLOCK loopTask >15s
@@ -96,32 +139,63 @@ void loop(){
       wifiLostSince = 0;  // đã kết nối lại → reset bộ đếm
     }
   }
+  // Storage / heap low watermark check mỗi 5 phút.
+  static unsigned long lastStorageCheck = 0;
+  if (millis() - lastStorageCheck > 300000UL) {
+    lastStorageCheck = millis();
+    storage_CheckLowWatermark();   // log warning trong Serial nếu pct > 80% hoặc heap thấp
+  }
+  // Auto backup cron — tự throttle 60s. Trigger backup task nếu đúng giờ config.
+  cron_Tick();
+
   static unsigned long lastDisplayUpdate = 0;
   static bool wasHolding = false;
+  static bool wasQrActive = false;
   bool holding = resetButton_IsHolding();
+  bool qrActive = qrButton_IsActive();
   // Khi đang giữ nút reset, reset_button.cpp tự vẽ countdown — main loop không ghi đè.
   // Khi vừa thả (transition true→false), ép redraw ngay để khỏi delay ~1s.
   bool justReleased = wasHolding && !holding;
+  // QR mode chỉ cần redraw đúng lúc enter/exit (nội dung không đổi trong 30s).
+  bool qrEdge = qrActive != wasQrActive;
   wasHolding = holding;
+  wasQrActive = qrActive;
 
-  if(!holding && (justReleased || millis() - lastDisplayUpdate >= 1000)){
-      if (wifi_IsAPMode()) {
-          // SSID dài 27 chars → tách 2 dòng để khỏi clip trên OLED 128px.
-          // Nếu STA đã connect (AP_STA mode sau khi save) show STA IP, không phải AP IP.
+  // QR đang hiện: nội dung tĩnh → KHÔNG cần redraw mỗi giây (tiết kiệm CPU/SPI).
+  // Chỉ vẽ lại khi edge enter/exit hoặc vừa thả reset.
+  bool periodic = (millis() - lastDisplayUpdate >= 1000) && !qrActive;
+  if(!holding && (justReleased || qrEdge || periodic)){
+      if (qrActive && qrButton_IsNoWifiMode()) {
+          // Notice 2s khi bấm QR lúc mất WiFi — dùng pattern message của display.
+          display_ShowMessage(TR("Chưa có WiFi\nKhông tạo được\nmã QR",
+                                  "No WiFi\nCan't generate\nQR code"));
+      } else if (qrActive && wifi_IsConnected() && !wifi_IsAPMode()) {
+          String ip = WiFi.localIP().toString();
+          display_ShowQRCode("http://" + ip, ip);
+      } else if (wifi_IsAPMode()) {
           display.clearBuffer();
-          display.setFont(u8g2_font_ncenB08_tr);
-          oledDisplayCenter("WiFi Setup Mode", 0, 11);
-          String apSsid = wifi_GetAPSSID();
-          int sp = apSsid.indexOf(' ');
-          String l1 = (sp > 0) ? apSsid.substring(0, sp) : apSsid;
-          String l2 = (sp > 0) ? apSsid.substring(sp + 1) : "";
-          display.setFont(u8g2_font_6x10_tr);
-          oledDisplayCenter(l1, 0, 26);
-          oledDisplayCenter(l2, 0, 38);
-          display.setFont(u8g2_font_ncenB08_tr);
           if (wifi_IsConnected()) {
-              oledDisplayCenter(WiFi.localIP().toString(), 0, 58);
+              // AP_STA: user vừa save WiFi → STA đã connect. Hiển thị thông báo
+              // hoàn tất + STA IP nổi bật, để user biết bấm "Done - Restart" trên web.
+              display.setFont(DISPLAY_VN_FONT);
+              oledDisplayCenter(TR("WiFi đã kết nối", "WiFi connected"), 0, 13);
+              display.setFont(u8g2_font_6x10_tr);
+              oledDisplayCenter("Truy cap", 0, 26);
+              display.setFont(u8g2_font_7x13B_tr);        // bold lớn hơn cho IP
+              oledDisplayCenter(WiFi.localIP().toString(), 0, 44);
+              display.setFont(u8g2_font_6x10_tr);
+              oledDisplayCenter("Bam 'Done' tren phone", 0, 58);
           } else {
+              // AP mode chưa connect STA — hiện SSID + AP IP để user setup.
+              display.setFont(DISPLAY_VN_FONT);
+              oledDisplayCenter(TR("Cấu hình WiFi", "WiFi Setup"), 0, 13);
+              String apSsid = wifi_GetAPSSID();
+              int sp = apSsid.indexOf(' ');
+              String l1 = (sp > 0) ? apSsid.substring(0, sp) : apSsid;
+              String l2 = (sp > 0) ? apSsid.substring(sp + 1) : "";
+              display.setFont(u8g2_font_6x10_tr);
+              oledDisplayCenter(l1, 0, 28);
+              oledDisplayCenter(l2, 0, 40);
               oledDisplayCenter(wifi_GetAPIP(), 0, 58);
           }
           display.sendBuffer();

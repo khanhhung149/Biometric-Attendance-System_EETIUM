@@ -16,4 +16,9 @@ void display_ShowMainScreen(String currentDate, String currentTime, bool wifi_Is
 void oledDisplayCenter(String text, int x, int y);
 void oledDisplayMultiLineCenter(const String& text, int yTop, int yBottom, int lineHeight);
 
+// Bỏ dấu tiếng Việt (UTF-8) → ASCII gần nhất để hiển thị OLED.
+// U8g2 font _tr chỉ hỗ trợ Latin cơ bản; tên có dấu sẽ mất ký tự.
+// "Nguyễn Văn An" → "Nguyen Van An". Sheet vẫn giữ UTF-8 đầy đủ.
+String display_StripDiacritics(const String& s);
+
 #endif

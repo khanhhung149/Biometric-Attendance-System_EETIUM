@@ -1684,11 +1684,13 @@ function insert(){
         })
 } 
 function del1(param){
-        $.post('/delete',   // url
-       { employee_id: param }, // data to be submit
-       function(data, status, jqXHR) {// success callback
-                $('#table').load("/show");
-        })
+  // Cần TOTP (nếu enable) — xoá là destructive op.
+  totpPrompt('Nhập mã 2FA để xoá user').then(function(totp){
+    if (totp === null) return;
+    var data = { employee_id: param };
+    if (totp) data.totp = totp;
+    $.post('/delete', data, function(){ $('#table').load('/show'); });
+  });
 }
 function del(param){
   var lang = (localStorage.getItem('eetium_lang') || 'vi');
@@ -1699,11 +1701,48 @@ function del(param){
       : 'Are you sure you want to delete this ID?\nOnce deleted the data will be permanently lost.',
     okText: lang === 'vi' ? 'Xóa' : 'Delete',
     cancelText: lang === 'vi' ? 'Hủy' : 'Cancel',
-    okColor: '#dc3545',
+    okColor: '#e74c3c',
     onOk: function(){
-      $.post('/delete', { id: param }, function(){ $('#table').load("/show"); });
+      totpPrompt('Nhập mã 2FA để xoá record').then(function(totp){
+        if (totp === null) return;
+        var data = { id: param };
+        if (totp) data.totp = totp;
+        $.post('/delete', data, function(){ $('#table').load('/show'); });
+      });
     }
   });
+}
+
+// ====== Global TOTP prompt (chia sẻ giữa các page con) ======
+// Promise resolve: '' nếu TOTP chưa enable (bypass), string code nếu user nhập, null nếu hủy.
+var _totpResolverGlobal = null;
+window.totpPrompt = function(msg){
+  return new Promise(function(resolve){
+    fetch('/totp_status').then(function(r){return r.json();}).then(function(j){
+      if (!j.enabled) { resolve(''); return; }   // chưa setup → bypass
+      var modal = document.getElementById('totpInputModalShared');
+      var input = document.getElementById('totpInputCodeShared');
+      var msgEl = document.getElementById('totpInputMsgShared');
+      if (msg) msgEl.textContent = msg;
+      input.value = '';
+      _totpResolverGlobal = resolve;
+      $(modal).addClass('show');
+      setTimeout(function(){ input.focus(); }, 100);
+    }).catch(function(){ resolve(''); });   // fail → bypass tránh khoá UI
+  });
+};
+function _totpInputSubmit(){
+  var code = document.getElementById('totpInputCodeShared').value.trim().toUpperCase();
+  if (code.length !== 6 && code.length !== 8) {
+    if (window.customAlert) customAlert({title:'!', msg:'Mã 6 số (TOTP) hoặc 8 ký tự (recovery)', okColor:'#e74c3c'});
+    return;
+  }
+  $('#totpInputModalShared').removeClass('show');
+  if (_totpResolverGlobal) { _totpResolverGlobal(code); _totpResolverGlobal = null; }
+}
+function _totpInputCancel(){
+  $('#totpInputModalShared').removeClass('show');
+  if (_totpResolverGlobal) { _totpResolverGlobal(null); _totpResolverGlobal = null; }
 }
 
 // ====== Custom Confirm/Alert (thay browser dialog) ======
@@ -1765,132 +1804,7 @@ function signout(){
 	
 }
 </script>
-<script>
-// Inline i18n cho navbar + content loaded via AJAX vào #table
-(function(){
-  var T={
-    "Database":{vi:"Dữ liệu",en:"Database"},
-    "Enroll":{vi:"Đăng ký",en:"Enroll"},
-    "Settings":{vi:"Cài đặt",en:"Settings"},
-    "Account":{vi:"Tài khoản",en:"Account"},
-    "Biometric Database Server":{vi:"Máy chủ Vân tay EETIUM",en:"Biometric Database Server"},
-    "Logout":{vi:"Đăng xuất",en:"Logout"},
-    "Sign out":{vi:"Đăng xuất",en:"Sign out"},
-    "Sign Out":{vi:"Đăng xuất",en:"Sign Out"},
-    "Username":{vi:"Tên đăng nhập",en:"Username"},
-    "Password":{vi:"Mật khẩu",en:"Password"},
-    "Login":{vi:"Đăng nhập",en:"Login"},
-    "Google Script URL":{vi:"URL Google Script",en:"Google Script URL"},
-    "IP Mode":{vi:"Chế độ IP",en:"IP Mode"},
-    "Auto IP (DHCP)":{vi:"Tự động (DHCP)",en:"Auto IP (DHCP)"},
-    "Manual IP":{vi:"IP thủ công",en:"Manual IP"},
-    "Gateway":{vi:"Gateway",en:"Gateway"},
-    "Timezone (offset UTC)":{vi:"Múi giờ (offset UTC)",en:"Timezone (offset UTC)"},
-    "Cancel":{vi:"Hủy",en:"Cancel"},
-    "Save":{vi:"Lưu",en:"Save"},
-    "Date":{vi:"Ngày",en:"Date"},
-    "Time":{vi:"Giờ",en:"Time"},
-    "Old Password":{vi:"Mật khẩu cũ",en:"Old Password"},
-    "New Password":{vi:"Mật khẩu mới",en:"New Password"},
-    "Confirm Password":{vi:"Xác nhận mật khẩu",en:"Confirm Password"},
-    "Change Password":{vi:"Đổi mật khẩu",en:"Change Password"},
-    "Change":{vi:"Đổi",en:"Change"},
-    "Login Name":{vi:"Tên đăng nhập",en:"Login Name"},
-    "Login Password":{vi:"Mật khẩu",en:"Login Password"},
-    "Change login name":{vi:"Đổi tên đăng nhập",en:"Change login name"},
-    "Change the login password":{vi:"Đổi mật khẩu đăng nhập",en:"Change the login password"},
-    "Current login password":{vi:"Mật khẩu hiện tại",en:"Current login password"},
-    "New login name":{vi:"Tên đăng nhập mới",en:"New login name"},
-    "New login password":{vi:"Mật khẩu mới",en:"New login password"},
-    "Retype new login password":{vi:"Nhập lại mật khẩu mới",en:"Retype new login password"},
-    "Employee ID":{vi:"Mã NV",en:"Employee ID"},
-    "Name":{vi:"Họ tên",en:"Name"},
-    "Full Name":{vi:"Họ tên",en:"Full Name"},
-    "Email":{vi:"Email",en:"Email"},
-    "Position":{vi:"Chức vụ",en:"Position"},
-    "Designations":{vi:"Chức vụ",en:"Designations"},
-    "Finger Print ID":{vi:"Mã vân tay",en:"Finger Print ID"},
-    "Fingerprint ID":{vi:"Mã vân tay",en:"Fingerprint ID"},
-    "Staff":{vi:"Nhân viên",en:"Staff"},
-    "Email ID":{vi:"Email",en:"Email ID"},
-    "Employee ID (auto)":{vi:"Mã NV (tự động)",en:"Employee ID (auto)"},
-    "Auto":{vi:"Tự động",en:"Auto"},
-    "(Auto)":{vi:"(Tự động)",en:"(Auto)"},
-    "Action":{vi:"Thao tác",en:"Action"},
-    "Delete":{vi:"Xóa",en:"Delete"},
-    "Re-enroll":{vi:"Đăng ký lại",en:"Re-enroll"},
-    "Edit":{vi:"Sửa",en:"Edit"},
-    "Edit user info":{vi:"Sửa thông tin user",en:"Edit user info"},
-    "Retake sample":{vi:"Lấy lại mẫu",en:"Retake sample"},
-    "NO":{vi:"STT",en:"NO"},
-    "No":{vi:"STT",en:"No"},
-    "FULL NAME":{vi:"HỌ TÊN",en:"FULL NAME"},
-    "EMAIL":{vi:"EMAIL",en:"EMAIL"},
-    "DESIGNATIONS":{vi:"CHỨC VỤ",en:"DESIGNATIONS"},
-    "FINGER PRINT ID":{vi:"MÃ VÂN TAY",en:"FINGER PRINT ID"},
-    "MÃ NV":{vi:"MÃ NV",en:"EMPLOYEE ID"},
-    "THAO TÁC":{vi:"THAO TÁC",en:"ACTION"},
-    "Download":{vi:"Tải xuống",en:"Download"},
-    "Upload":{vi:"Tải lên",en:"Upload"},
-    "Check":{vi:"Kiểm tra",en:"Check"},
-    "Backup database":{vi:"Sao lưu database",en:"Backup database"},
-    "Restore database":{vi:"Phục hồi database",en:"Restore database"},
-    "Database Backup & Restore":{vi:"Sao lưu & Phục hồi DB",en:"Database Backup & Restore"},
-    "Sync check":{vi:"Kiểm tra đồng bộ",en:"Sync check"},
-    "End current session":{vi:"Kết thúc phiên hiện tại",en:"End current session"},
-    "Compare database records vs sensor templates":{vi:"So sánh DB records với sensor templates",en:"Compare database records vs sensor templates"},
-    "BackupDesc":{vi:"Tải <code>backup.db</code> về trước khi chạy <code>uploadfs</code>",en:"Download <code>backup.db</code> before running <code>uploadfs</code>"},
-    "RestoreDesc":{vi:"Tải lên file <code>backup.db</code> đã sao lưu (thiết bị sẽ khởi động lại)",en:"Upload a previously backed-up <code>backup.db</code> (device will restart)"}
-  };
-  function getLang(){return localStorage.getItem('eetium_lang')||'vi';}
-  function apply(){
-    var lang=getLang();
-    // 1. Explicit data-i18n attribute (ưu tiên cao, text-only)
-    document.querySelectorAll('[data-i18n]').forEach(function(el){
-      var key=el.getAttribute('data-i18n');
-      if(T[key]&&T[key][lang]!==undefined) el.textContent=T[key][lang];
-    });
-    // 1b. data-i18n-html attribute — cho chuỗi có chứa <code>, <b>, v.v.
-    document.querySelectorAll('[data-i18n-html]').forEach(function(el){
-      var key=el.getAttribute('data-i18n-html');
-      if(T[key]&&T[key][lang]!==undefined) el.innerHTML=T[key][lang];
-    });
-    // 2. Auto-detect text content
-    document.querySelectorAll('button,label,h1,h2,h3,h4,h5,th,.brand-title,.form-label,option,a,span,.account-title,.field,.change,.signout-btn,.action-btn').forEach(function(el){
-      if(el.children.length>0) return;
-      if(el.hasAttribute('data-i18n')) return;
-      var key=el.getAttribute('data-i18n-key');
-      if(!key){
-        var t=(el.textContent||'').trim();
-        if(T[t]){key=t;el.setAttribute('data-i18n-key',key);}
-      }
-      if(key&&T[key]&&T[key][lang]!==undefined) el.textContent=T[key][lang];
-    });
-    // 3. Placeholder auto-detect (input + textarea)
-    document.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(el){
-      var key=el.getAttribute('data-i18n-ph-key');
-      if(!key){
-        var t=(el.getAttribute('placeholder')||'').trim();
-        if(T[t]){key=t;el.setAttribute('data-i18n-ph-key',key);}
-      }
-      if(key&&T[key]&&T[key][lang]!==undefined) el.setAttribute('placeholder',T[key][lang]);
-    });
-  }
-  function init(){
-    apply();
-    if(window.MutationObserver){
-      var pending=false;
-      new MutationObserver(function(){
-        if(pending) return; pending=true;
-        requestAnimationFrame(function(){apply();pending=false;});
-      }).observe(document.body,{childList:true,subtree:true});
-    }
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
-  else init();
-  window.i18n={apply:apply,getLang:getLang,setLang:function(l){localStorage.setItem('eetium_lang',l);apply();}};
-})();
-</script>
+<script src="/i18n.js"></script>
 </head>
 <style>
   /* Override db.html legacy styles for cleaner responsive layout */
@@ -1926,10 +1840,10 @@ function signout(){
   .db-content table tr:nth-child(even) td { background: #f8f9fa; }
   .db-content table tr:hover td { background: #eef2ff; transition: background .15s; }
   .db-content table tr:last-child td { border-bottom: none; }
-  .db-content table button, .db-content table input[type="button"] { padding: 6px 14px; background: #dc3545; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; transition: background .2s; margin: 0 2px; }
-  .db-content table button:hover, .db-content table input[type="button"]:hover { background: #bb2d3b; }
-  .db-content table button.edit-btn { background: #198754; }
-  .db-content table button.edit-btn:hover { background: #146c43; }
+  .db-content table button, .db-content table input[type="button"] { padding: 6px 14px; background: #e74c3c; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; transition: background .2s; margin: 0 2px; }
+  .db-content table button:hover, .db-content table input[type="button"]:hover { background: #c0392b; }
+  .db-content table button.edit-btn { background: #1a73e8; }
+  .db-content table button.edit-btn:hover { background: #1557b0; }
   /* Edit Modal — light theme */
   .edit-modal-bd { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; align-items:center; justify-content:center; padding:12px; box-sizing:border-box; }
   .edit-modal-bd.show { display:flex; }
@@ -2011,6 +1925,24 @@ function signout(){
       <div class="edit-modal-foot">
         <button class="em-cancel" onclick="cancelConfirm()" id="confirmCancelBtn">Cancel</button>
         <button class="em-save" onclick="okConfirm()" id="confirmOkBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOTP Input Modal — chia sẻ giữa Account/EditUser/db pages. JS totpPrompt() -->
+  <div class="edit-modal-bd" id="totpInputModalShared" onclick="if(event.target===this)_totpInputCancel()">
+    <div class="edit-modal-box" style="max-width:360px;">
+      <div class="edit-modal-head">Nhập mã 2FA</div>
+      <div class="edit-modal-body">
+        <div id="totpInputMsgShared" style="margin-bottom:10px;color:#374151;font-size:14px;">Mở Google Authenticator và nhập mã 6 số</div>
+        <input type="text" id="totpInputCodeShared" maxlength="8" inputmode="text" autocomplete="off"
+               placeholder="123456"
+               style="width:100%;font-family:monospace;font-size:20px;text-align:center;letter-spacing:6px;text-transform:uppercase;padding:8px;">
+        <div style="font-size:11px;color:#999;margin-top:6px;">Hoặc paste recovery code 8 ký tự</div>
+      </div>
+      <div class="edit-modal-foot">
+        <button class="em-cancel" onclick="_totpInputCancel()">Hủy</button>
+        <button class="em-save"   onclick="_totpInputSubmit()">Gửi</button>
       </div>
     </div>
   </div>

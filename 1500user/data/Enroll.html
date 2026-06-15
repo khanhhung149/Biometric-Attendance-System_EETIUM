@@ -110,17 +110,24 @@ footer{
 // Database() dùng hàm global của db.html (routing /show). KHÔNG override ở đây.
 // Chỉ load 1 lần khi page mở, không poll mỗi giây để tránh fragment heap ESP
 getsfpid();
-setInterval(function() {
+// Poll mỗi 30s — tự dừng nếu element pfpid không còn (user chuyển page).
+var _fpidPollId = setInterval(function() {
+  if (!document.getElementById('pfpid')) {
+    clearInterval(_fpidPollId);
+    return;
+  }
   getsfpid();
-}, 30000); // 30s thay vì 1s
+}, 30000);
 
 function getsfpid() {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("pfpid").innerHTML =
-      this.responseText;
-	  $("input[name=FPID]").val(this.responseText);
+      // Null check — page có thể đã unmount khi response về.
+      var el = document.getElementById("pfpid");
+      if (!el) return;
+      el.innerHTML = this.responseText;
+      $("input[name=FPID]").val(this.responseText);
     }
   };
   xhttp.open("GET", "getfpid", true);
@@ -151,14 +158,81 @@ function Enroll(){
     $("#epos").focus(); return;
   }
 
+  var n = parseInt($("#eNumFingers").val() || "1", 10);
+  if (n < 1) n = 1; if (n > 5) n = 5;
+  var estSec = n * 25;   // ~25s per finger với manualEnroll (4 samples + retry buffer)
+
   var msg = lang === 'vi'
-    ? 'Bấm Bắt đầu để khởi tạo đăng ký vân tay.\n\n📺 Nhìn vào màn hình OLED của thiết bị để làm theo hướng dẫn:\n  • Đặt ngón tay lên sensor 6 lần\n  • Nhấc ngón tay khi sensor báo\n  • Quá trình mất ~30 giây\n\n⚠️ KHÔNG đóng trang hoặc đăng ký lại cho đến khi hoàn tất.'
-    : 'Press Start to begin fingerprint enrollment.\n\n📺 Watch the device OLED screen and follow instructions:\n  • Place finger on sensor 6 times\n  • Lift finger when sensor beeps\n  • Process takes ~30 seconds\n\n⚠️ DO NOT close this page or try to Enroll again until complete.';
+    ? ('Bấm Bắt đầu để khởi tạo đăng ký ' + n + ' vân tay liên tiếp.\n\n📺 Nhìn vào màn hình OLED của thiết bị để làm theo hướng dẫn:\n  • Mỗi vân tay đặt 6 lần lên sensor\n  • Nhấc ngón tay khi sensor báo\n  • Tổng thời gian ước tính ~' + estSec + ' giây\n\n⚠️ KHÔNG đóng trang cho đến khi hoàn tất tất cả ' + n + ' vân tay.')
+    : ('Press Start to begin enrolling ' + n + ' fingerprints in a row.\n\n📺 Watch the device OLED and follow instructions:\n  • Each finger needs 6 captures\n  • Lift finger between captures\n  • Total estimated time ~' + estSec + ' seconds\n\n⚠️ DO NOT close this page until all ' + n + ' fingers are done.');
+
+  function showProgress(idx, total){
+    $('#enrollProgress').addClass('show').show();
+    $('#enrollProgressTitle').text(
+      lang==='vi' ? ('Đang quét vân tay ' + idx + '/' + total) : ('Scanning finger ' + idx + '/' + total));
+    $('#enrollProgressMsg').text(
+      lang==='vi' ? 'Theo hướng dẫn trên OLED, đặt ngón tay 6 lần' : 'Follow OLED instructions, place finger 6 times');
+    // Animate progress bar: (idx-1)/total = % đã xong
+    var pct = Math.round(((idx-1) / total) * 100);
+    $('#enrollProgressFill').css('width', pct + '%');
+  }
+  function hideProgress(){ $('#enrollProgress').removeClass('show').hide(); $('#enrollProgressFill').css('width','0%'); }
+  function setBtnDisabled(b){ $('#submitBut').prop('disabled', b); }
+
+  // Enroll finger 2..N qua /add_finger sau khi /insert đã tạo user + vân 1.
+  // Mỗi finger cần TOTP riêng (single-use replay protection).
+  function enrollFinger(idx, total, done){
+    showProgress(idx, total);
+    totpPrompt('Mã 2FA cho vân tay ' + idx + '/' + total).then(function(totp){
+      if (totp === null) { done(false); return; }
+      if (idx === 1) {
+        var d = { memployee_id: eid, mname: name, memail_id: $("#eemail").val(), mpos: pos, mfpid: $("#efpid").val() };
+        if (totp) d.totp = totp;
+        $.post('/insert', d, function(){ done(true); }).fail(function(){ done(false); });
+      } else {
+        var d2 = totp ? ('totp='+encodeURIComponent(totp)) : '';
+        $.post('/add_finger?eid=' + encodeURIComponent(eid), d2,
+          function(){ done(true); }
+        ).fail(function(){ done(false); });
+      }
+    });
+  }
+
+  function enrollLoop(idx, total){
+    if (idx > total) {
+      $('#enrollProgressFill').css('width','100%');
+      $('#enrollProgressTitle').text(lang==='vi' ? 'Đã đăng ký xong' : 'Enrollment complete');
+      $('#enrollProgressMsg').text(lang==='vi' ? ('Đã lưu ' + total + ' vân tay') : ('Saved ' + total + ' fingers'));
+      setTimeout(function(){ hideProgress(); }, 1500);
+      setBtnDisabled(false);
+      $('#table').load("/show");
+      if (window.customAlert) customAlert({
+        title: lang==='vi' ? 'Hoàn tất' : 'Done',
+        msg: lang==='vi' ? ('Đã đăng ký ' + total + ' vân tay cho ' + name) : ('Enrolled ' + total + ' fingers for ' + name),
+        okColor: '#198754'
+      });
+      return;
+    }
+    enrollFinger(idx, total, function(ok){
+      if (!ok) {
+        hideProgress();
+        setBtnDisabled(false);
+        if (window.customAlert) customAlert({
+          title: lang==='vi' ? 'Đăng ký thất bại' : 'Enroll failed',
+          msg: lang==='vi'
+            ? ('Vân tay ' + idx + '/' + total + ' bị lỗi. Đã lưu ' + (idx-1) + ' vân tay trước đó.\nKiểm tra OLED + thử lại từ trang Database.')
+            : ('Finger ' + idx + '/' + total + ' failed. ' + (idx-1) + ' fingers saved before.\nCheck OLED + retry from Database page.'),
+          okColor: '#dc2626'
+        });
+        return;
+      }
+      enrollLoop(idx + 1, total);
+    });
+  }
 
   var startEnroll = function(){
-    $.post('/insert',
-      { memployee_id: eid, mname: name, memail_id: $("#eemail").val(), mpos: pos, mfpid: $("#efpid").val() },
-      function(data){ $('#table').load("/show"); });
+    setBtnDisabled(true);
+    enrollLoop(1, n);
   };
 
   if (window.customConfirm) {
@@ -183,57 +257,110 @@ function Enroll(){
 
 
 <body>
-    <!-- Start: Enroll form (responsive, matches Settings) -->
+    <!-- Enroll page — style matches EditUser for consistent UX -->
     <style>
       body { min-height: 100vh; display: flex; flex-direction: column; margin: 0; }
-      .settings-wrap { padding: 24px 12px; flex: 1; }
+      .enroll-wrap { padding: 24px 12px; flex: 1; }
       .page-footer { margin-top: auto; }
-      .settings-card { max-width: 560px; margin: 0 auto; background: rgba(255,255,255,0.65); border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.12); padding: 24px; }
-      .settings-card .form-label { font-weight: 500; color: #333; margin-bottom: 4px; font-size: 14px; }
-      .settings-card .form-control { height: 48px; border-radius: 8px; font-size: 15px; }
-      .settings-card .logo-img { max-width: 200px; width: 60%; height: auto; display: block; margin: 0 auto 16px auto; }
-      .settings-card .btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
-      @media (min-width: 576px) {
-        .settings-card .btn-row { flex-direction: row; justify-content: center; gap: 16px; }
-        .settings-card .btn-row .btn { min-width: 160px; }
-      }
-      .settings-card .btn { height: 48px; border-radius: 8px; font-weight: 500; font-size: 15px; }
+      .enroll-page-wrap { max-width: 720px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); overflow: hidden; }
+      .enroll-page-head { background: #f9fafb; padding: 18px 24px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+      .enroll-page-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: #1f2937; }
+      .enroll-page-body { padding: 24px; }
+      .enroll-page-body .grp { margin-bottom: 16px; }
+      .enroll-page-body label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #374151; }
+      .enroll-page-body label .req { color: #dc2626; margin-left: 2px; }
+      .enroll-page-body label .hint { color: #6b7280; font-weight: 400; font-size: 12px; margin-left: 6px; }
+      .enroll-page-body input[type="text"],
+      .enroll-page-body input[type="email"] { width: 100%; padding: 10px 12px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; color: #111827; font-size: 14px; box-sizing: border-box; transition: border-color .15s, box-shadow .15s; }
+      .enroll-page-body input:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.15); }
+      .enroll-page-body input:disabled,
+      .enroll-page-body input[readonly] { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
+      /* Finger count buttons (1-5) */
+      .ep-finger-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+      .ep-finger-btn { flex: 1; min-width: 48px; padding: 12px 0; background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+                      color: #374151; font-size: 16px; font-weight: 600; cursor: pointer; transition: all .15s; }
+      .ep-finger-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+      .ep-finger-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; box-shadow: 0 2px 6px rgba(26,115,232,.3); }
+      /* Progress callout */
+      .enroll-progress { display: none; padding: 14px 16px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #1a73e8; margin-bottom: 16px; }
+      .enroll-progress.show { display: block; }
+      .enroll-progress-title { font-weight: 600; color: #1e3a5f; margin-bottom: 4px; font-size: 14px; }
+      .enroll-progress-msg { font-size: 13px; color: #4b5563; }
+      .enroll-progress-bar { background: #d1e7f8; border-radius: 4px; height: 6px; overflow: hidden; margin-top: 8px; }
+      .enroll-progress-fill { background: #1a73e8; height: 100%; width: 0%; transition: width .3s; }
+      /* Footer with action button */
+      .enroll-page-foot { display: flex; gap: 10px; padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; justify-content: flex-end; flex-wrap: wrap; }
+      .enroll-page-foot button { padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid transparent; min-width: 140px; transition: all .15s; }
+      .enroll-page-foot .ep-submit { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+      .enroll-page-foot .ep-submit:hover:not(:disabled) { background: #1557b0; }
+      .enroll-page-foot .ep-submit:disabled { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
     </style>
-    <div class="settings-wrap">
-      <div class="settings-card">
-        <form id="enrolform">
-          <img class="logo-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAmoAAABWCAQAAADV/HILAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAAmJLR0QA/4ePzL8AAAAJb0ZGcwAAAGUAAAELAGAlm9sAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQfqBQUMLTscDqepAAAACXZwQWcAAAM0AAACbABxHRLqAAAGV0lEQVR42u3d23XiOhSAYemsqQFqmCawV3pID6aJCUwTuIf0kIVpYmoITeg8JAEn+CLJWxfb//eUSRgsYdhsbVuSUgAAAAAAAAAAAAAAAAAAAAAAYH101y+rg9Czv9WXz2fcqSeZp6yl2rbwnor1LACpczj8Wsu+UyyOeHsPhDN4VoMdv/+oIV7j6S341fnIvd5INMW83X580i9C3RM9dVKtCtFTdcihZ0FM6pl1L8WO0jreX1X0/c0oFTyoDfW39R4UVe36j7ovT2XoPitVvffFI3PtOsv/hW/SuugydQuAaIrqPewBql1/SOtDUBNmzqlbAMSjNyHDWrVTr+6jRoLaQplr6hZAXo5nVW+q92oX4pn9QhpBTZwuU7fgsx0iVVHkJc+zqjfqVT6s+Ya00EFN6DrgnDD8xPrIh7VqpxvfEB42qAW6HgMgL7Jhrdrpxv9/M/wUpsvULfiQY/UFU+V8VvVGNzJhrTpMCWkENXG5DD/zrL5gmtzPqkRYqw5T77EkqCG6MNfKkIOpYW16SCOoidNl6hbkL/x0IqSjG/8pevuzxEwYgpqwXIafWKKca2p3+sUvrO3P/ZPQXPxy/Q/mqv95HWlS6e8u4re8b4uFejqNmfD2GC7TmiNXtVPJvaZ2a+dL5TzZXSqkeQQ19XzyCCuxZvNLMn98AmguPfUP/uM1EYaPGOMa1uRCms/wc4U31AJwpV/2Z9vHVu9yIc0nqDH0ABKZR03tprALa+7rcAwjUwNmYy41tZvRsOaztNAYMjUAAyZWUAfDmv+k9SFkagAGDF84MsXokLh3IUmrkNaYo2uLydSA2UhRUxvO1OqLeh5rVfdCklbrcDSn0j3ikKkBs5GipjacqVW7+lJvbcLa9+exWoej8dsBgUwNgLePPK7ejt1yrjfq9f4vp5DmnEaRqQHw9pV/nUqLsObAHG9ZWoThJ5kakEh+96ndK27jYc2hn8cpM3PI1IDZyO8+tXalzCGsDUaRHyHNOeI4z/3UpcMMfMd9y3OZN/nZ07/VOVBPI+zlDcTw/Z18KofmcFa726PfVO8SQw9Z2sBju7lPaC+09Swtx33Ls1jdIkpPS1Wm7hwgoRWolFJKncr+ZR5bj+z94jfFwxd+hAsFGKTL1C3AcuVcU7v95mBxu2xPZb4jpEW5UIBBLBKJcPKuqX2xCmsdOkOaB4IaAG/dYag7rLUC4MOQ0lx7QxrDz9R0mboFQDx98w3qw+Pay62g9WNIaa7quTdLy2z4ucLbPxh+Ipw51NTuf7FdUn4wpHlgh3ZgNuZRU/syENZa6c5oSGP4mZouU7cAiGdsDY/20kStAHhLd8y13o5kaZkNP1eI4SfWZGybnvbSRB33qTX1dvQQZGrAcs2pptZ6xOOKax/Zl93SQmRqqekydQuwXPOqqX3pWUjSc7W0cVz9FMbwE2tid9WyYyFJ+5AWfkK7ahw+tvfE8c04Hyg5l562+mzRU64KYyF+zv3s97165pClhZ/Q7rlv+UXNbl2K9fQUc2GuuQ1A/e4vC7tKDeupAbORW0izq6lNFOHqJ0MnAJ8irAzIblIA4iFTAzDBHO9Tm4xMDViuVdbUnJGpAfAWIVNj308A8UTI1Nj3E1iuVdbUnJGpAbOxypoaVz8BxMPVTwCLkmOm5j6h3aEb7Sgu1fmIY/inyqtVM+wpJOz3pe1Dzfm+C/n+nLrhw+rLfvCvwRsQfkK7frE9hLmq1rx8LbT/eiW0N6BkT1Vz33G92kn1VOk4/YQMvVH2Fa/z/UfzO79KWdvwl7T9Kh3xsEikAPM7dQuANJZxn5qXHO87lqP/pW4BkMYy7lPzkl+KKolMDWuV4yebTE0AmRrWKsern2RqAsjU1sL8UVKXgWTbdTXHNJ+xZdynhgdkamtRX05le3veTDT19n6LSFwrztSWjUxtTepLvTXH1K24aUwRaqs5u1cj+CFyzdSoqWFJ6oMp0g9EzdUcT2Xa0k6On2xqagLI1NYn/UDUHNMNOtuvQ/BD5Dr8zDGeyyFTW6eEA9HGFOkDmlLcp7ZYZGrrVR9METewmaspUg86W/3PpB1t3XM/T/L7qUudeNkXUf7tWF+qfIrIYXqQ0eJTORTs64u6VG+Og6T2a+j4aYudoaV/R+dwlgEAAAAAAAAAAAAAAAAAAAAAQO7+B+fpIbRb5CCXAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDI2LTA1LTA1VDEyOjQ1OjU5KzA4OjAwidHjfQAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyNi0wNS0wNVQxMjo0NTo1OSswODowMPiMW8EAAAAASUVORK5CYII=" alt="Logo">
-          <div class="mb-3">
-            <label class="form-label" for="eid"><span data-i18n="Employee ID">Employee ID</span><span style="color:#dc2626;margin-left:2px;">*</span></label>
-            <input class="form-control" type="text" id="eid" name="EMPID" placeholder="Employee ID" required="">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="ename"><span data-i18n="Full Name">Full Name</span><span style="color:#dc2626;margin-left:2px;">*</span></label>
-            <input class="form-control" type="text" id="ename" name="FNAME" placeholder="Nguyễn Văn A" required="">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="eemail" data-i18n="Email">Email</label>
-            <input class="form-control" type="email" id="eemail" name="EmailID" placeholder="Email ID" required="">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="epos"><span data-i18n="Designations">Designations</span><span style="color:#dc2626;margin-left:2px;">*</span></label>
-            <input class="form-control" type="text" id="epos" name="Position" placeholder="Staff" required="">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="efpid"><span data-i18n="Finger Print ID">Finger Print ID</span> <small style="color:#888;font-weight:400;">(Auto)</small></label>
-            <input class="form-control" type="text" id="efpid" name="FPID" readonly required="" style="background:#f0f0f0;cursor:not-allowed;">
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="submitBut" type="button" onclick="Enroll()" style="background: var(--bs-blue); border-color: var(--bs-blue);">Enroll</button>
-          </div>
-        </form>
-        <h2 style="display: none;">FPID :&nbsp;<span id="pfpid"></span></h2>
+    <div class="enroll-wrap">
+      <div class="enroll-page-wrap">
+        <div class="enroll-page-head">
+          <h2 data-i18n="Add User">Thêm user mới</h2>
+        </div>
+        <div class="enroll-page-body">
+          <form id="enrolform">
+            <div class="grp">
+              <label><span data-i18n="Employee ID">Employee ID</span><span class="req">*</span></label>
+              <input type="text" id="eid" name="EMPID" placeholder="Employee ID" required>
+            </div>
+            <div class="grp">
+              <label><span data-i18n="Full Name">Full Name</span><span class="req">*</span></label>
+              <input type="text" id="ename" name="FNAME" placeholder="Nguyễn Văn A" required>
+            </div>
+            <div class="grp">
+              <label data-i18n="Email">Email</label>
+              <input type="email" id="eemail" name="EmailID" placeholder="Email ID">
+            </div>
+            <div class="grp">
+              <label><span data-i18n="Designations">Designations</span><span class="req">*</span></label>
+              <input type="text" id="epos" name="Position" placeholder="Staff" required>
+            </div>
+            <div class="grp">
+              <label><span data-i18n="Finger Print ID">Finger Print ID</span><span class="hint">(<span data-i18n="Auto">Auto</span>)</span></label>
+              <input type="text" id="efpid" name="FPID" readonly required>
+            </div>
+            <div class="grp">
+              <label><span data-i18n="Number of fingers">Number of fingers</span><span class="hint">(1-5)</span></label>
+              <div class="ep-finger-btns" id="eNumFingersBtns">
+                <button type="button" class="ep-finger-btn active" data-n="1" onclick="setNumFingers(1)">1</button>
+                <button type="button" class="ep-finger-btn" data-n="2" onclick="setNumFingers(2)">2</button>
+                <button type="button" class="ep-finger-btn" data-n="3" onclick="setNumFingers(3)">3</button>
+                <button type="button" class="ep-finger-btn" data-n="4" onclick="setNumFingers(4)">4</button>
+                <button type="button" class="ep-finger-btn" data-n="5" onclick="setNumFingers(5)">5</button>
+              </div>
+              <!-- Hidden input giữ tương thích với JS Enroll() đọc $('#eNumFingers').val() -->
+              <input type="hidden" id="eNumFingers" value="1">
+            </div>
+            <div class="enroll-progress" id="enrollProgress">
+              <div class="enroll-progress-title" id="enrollProgressTitle">—</div>
+              <div class="enroll-progress-msg" id="enrollProgressMsg">—</div>
+              <div class="enroll-progress-bar"><div class="enroll-progress-fill" id="enrollProgressFill"></div></div>
+            </div>
+          </form>
+          <h2 style="display: none;">FPID :&nbsp;<span id="pfpid"></span></h2>
+        </div>
+        <div class="enroll-page-foot">
+          <button type="button" class="ep-submit" id="submitBut" onclick="Enroll()" data-i18n="Enroll">Đăng ký mới</button>
+        </div>
       </div>
     </div><!-- End: Enroll form -->
+    <script>
+      // Switch active state cho button group N fingers + update hidden input.
+      function setNumFingers(n){
+        document.getElementById('eNumFingers').value = n;
+        document.querySelectorAll('.ep-finger-btn').forEach(function(b){
+          b.classList.toggle('active', parseInt(b.dataset.n,10) === n);
+        });
+      }
+    </script>
     <footer class="page-footer" style="text-align:center;padding:18px 12px;font-size:13px;color:#666;border-top:1px solid #e9ecef;margin-top:30px;background:#fff;">
       Copyright © <span class="copyright-year">2026</span> <a href="https://eetium.com" target="_blank" rel="noopener" style="color:#666;text-decoration:none;font-weight:600;">EETIUM</a>, INC. All Rights Reserved. <a href="#" style="color:#666;text-decoration:none;"></a>
     </footer>
-    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
+    <!-- Bootstrap JS đã loại — file không tồn tại trong LittleFS, gây 404 + parse error. -->
+    <!-- <script src="assets/bootstrap/js/bootstrap.min.js"></script> -->
     <script>document.querySelectorAll('.copyright-year').forEach(function(e){e.textContent=new Date().getFullYear();});</script>
 </body>
 </html>

@@ -29,14 +29,14 @@ static void removeIfExists(const char *p) {
 
 static void doNetworkReset() {
   Serial.println("[Reset] === NETWORK RESET (keep DB) ===");
-  display_ShowMessage("Resetting\nNetwork...");
+  display_ShowMessage("Đặt lại\nmạng...");
   removeIfExists("/ssid.txt");
   removeIfExists("/pass.txt");
   removeIfExists("/ip.txt");
   removeIfExists("/gateway.txt");
   removeIfExists("/dhcpcheck.txt");
   beepBuzzer(2, 120);
-  display_ShowMessage("Network\nReset OK\nRestarting");
+  display_ShowMessage("Đã reset mạng\nKhởi động lại");
   delay(1500);
   ESP.restart();
 }
@@ -46,7 +46,7 @@ static void doFactoryReset() {
   // Xóa: SQLite DB, template trong sensor flash, WiFi config.
   // Giữ: web assets (index.html/css/js) — không cần uploadfs lại.
   Serial.println("[Reset] === CLEAR DB + RESET NETWORK ===");
-  display_ShowMessage("Clearing DB\n& WiFi...");
+  display_ShowMessage("Đang xóa DB\n& WiFi...");
   if (test1_db) {
     sqlite3_close(test1_db);
     test1_db = nullptr;
@@ -61,7 +61,7 @@ static void doFactoryReset() {
   removeIfExists("/gateway.txt");
   removeIfExists("/dhcpcheck.txt");
   beepBuzzer(3, 150);
-  display_ShowMessage("All Cleared\nRestarting");
+  display_ShowMessage("Đã xóa hết\nKhởi động lại");
   delay(1500);
   ESP.restart();
 }
@@ -92,7 +92,7 @@ void resetButton_Task() {
     pressStart_ = now;
     reachedStage_ = 0;
     lastShownSec_ = 0;
-    display_ShowMessage("Hold: 0s\n5s: Reset Net\n30s: Clear DB");
+    display_ShowMessage("Giữ: 0s\n5s: Reset mạng\n30s: Xóa DB");
     return;
   }
 
@@ -133,13 +133,13 @@ void resetButton_Task() {
       String msg;
       if (reachedStage_ >= 2) {
         // >=30s: thả ra sẽ wipe DB + WiFi
-        msg = "Hold: " + String(sec) + "s\nRelease for\nCLEAR ALL DB";
+        msg = "Giữ: " + String(sec) + "s\nThả để\nXÓA TẤT CẢ";
       } else if (reachedStage_ >= 1) {
         // 5s ≤ held < 30s: thả ra sẽ reset network, tiếp tục đếm tới 30
-        msg = "Hold: " + String(sec) + "s\n>>Reset Net<<\n30s: Clear DB";
+        msg = "Giữ: " + String(sec) + "s\n>>Reset mạng<<\n30s: Xóa DB";
       } else {
         // 0 ≤ held < 5s: hướng dẫn cả 2 mốc
-        msg = "Hold: " + String(sec) + "s\n5s: Reset Net\n30s: Clear DB";
+        msg = "Giữ: " + String(sec) + "s\n5s: Reset mạng\n30s: Xóa DB";
       }
       display_ShowMessage(msg);
     }

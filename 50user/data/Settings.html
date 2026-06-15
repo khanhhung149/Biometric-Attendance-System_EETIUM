@@ -134,7 +134,17 @@ function save(){
        { gsid: extractGsid($("#googlesid").val()), aip: $("#aip").val(), mip: $("#mip").val(), gateway: $("#gateway").val(), tz: $("#tz").val(),
          dtd: dt.getDate(), dtm: dt.getMonth()+1, dty: dt.getFullYear(),
          tmh: h12, tmm: dt.getMinutes(), tms: dt.getSeconds(), tmapm: ampm },
-       function(data, status, jqXHR) { $('#table').load("/show"); });
+       function() {
+         // Thiết bị reboot để áp config WiFi/giờ — hiện thông báo + tự reload sau ~12s
+         window.customAlert({
+           title: lang === 'vi' ? 'Đã lưu — đang khởi động lại' : 'Saved — restarting',
+           msg:   lang === 'vi'
+             ? 'Thiết bị đang khởi động lại. Trang sẽ tự làm mới sau ~12 giây.'
+             : 'Device is restarting. Page will auto-refresh in ~12 seconds.',
+           okColor: '#198754'
+         });
+         setTimeout(function(){ window.location.reload(); }, 12000);
+       });
   };
   window.customConfirm({
     title: lang === 'vi' ? 'Lưu cài đặt' : 'Save settings',
@@ -175,134 +185,43 @@ function toggleManualIp() {
   }
 }
 
+// URL Google Script: readonly mặc định để tránh xóa nhầm. Nút "Sửa" mở khoá để chỉnh.
+// Bỏ data-i18n-key trước khi set text — không để MutationObserver i18n đè ngược
+// (initial "Edit" trùng key T["Edit"] khiến nút bị revert khi đổi sang "Lock").
+function toggleEditGsid() {
+  var inp = document.getElementById('googlesid');
+  var btn = document.getElementById('editGsidBtn');
+  var lang = (localStorage.getItem('eetium_lang') || 'vi');
+  btn.removeAttribute('data-i18n-key');
+  btn.removeAttribute('data-i18n');
+  if (inp.readOnly) {
+    inp.readOnly = false;
+    inp.style.background = '#fff';
+    inp.focus();
+    btn.textContent = lang === 'vi' ? 'Khóa' : 'Lock';
+  } else {
+    inp.readOnly = true;
+    inp.style.background = '#f5f5f5';
+    btn.textContent = lang === 'vi' ? 'Sửa' : 'Edit';
+  }
+}
+
 $(document).ready(function() {
   updateDateTimePreview();
   setInterval(updateDateTimePreview, 1000); // refresh mỗi 1s để time chạy live
   toggleManualIp();
+  // Hiện URL Google Script đang lưu (nếu có) và set text nút Sửa theo ngôn ngữ
+  var _lang = (localStorage.getItem('eetium_lang') || 'vi');
+  var $btn = $('#editGsidBtn');
+  $btn.removeAttr('data-i18n-key').removeAttr('data-i18n');
+  $btn.text(_lang === 'vi' ? 'Sửa' : 'Edit');
+  $.get('/getgsid', function(gsid) {
+    gsid = (gsid || '').trim();
+    if (gsid) $('#googlesid').val('https://script.google.com/macros/s/' + gsid + '/exec');
+  });
 });
 	</script>
-<script>
-// Inline i18n — không phụ thuộc /i18n.js route. Áp dụng cho mọi page khi shared localStorage.
-(function(){
-  var T = {
-    "Database":{vi:"Dữ liệu",en:"Database"},
-    "Enroll":{vi:"Đăng ký",en:"Enroll"},
-    "Settings":{vi:"Cài đặt",en:"Settings"},
-    "Account":{vi:"Tài khoản",en:"Account"},
-    "Biometric Database Server":{vi:"Máy chủ Vân tay EETIUM",en:"Biometric Database Server"},
-    "Logout":{vi:"Đăng xuất",en:"Logout"},
-    "Sign out":{vi:"Đăng xuất",en:"Sign out"},
-    "Sign Out":{vi:"Đăng xuất",en:"Sign Out"},
-    "Username":{vi:"Tên đăng nhập",en:"Username"},
-    "Password":{vi:"Mật khẩu",en:"Password"},
-    "Login":{vi:"Đăng nhập",en:"Login"},
-    "Google Script URL":{vi:"URL Google Script",en:"Google Script URL"},
-    "IP Mode":{vi:"Chế độ IP",en:"IP Mode"},
-    "Auto IP (DHCP)":{vi:"Tự động (DHCP)",en:"Auto IP (DHCP)"},
-    "Manual IP":{vi:"IP thủ công",en:"Manual IP"},
-    "Gateway":{vi:"Gateway",en:"Gateway"},
-    "Timezone (offset UTC)":{vi:"Múi giờ (offset UTC)",en:"Timezone (offset UTC)"},
-    "Cancel":{vi:"Hủy",en:"Cancel"},
-    "Save":{vi:"Lưu",en:"Save"},
-    "Submit":{vi:"Gửi",en:"Submit"},
-    "Date":{vi:"Ngày",en:"Date"},
-    "Time":{vi:"Giờ",en:"Time"},
-    "Old Password":{vi:"Mật khẩu cũ",en:"Old Password"},
-    "Current Password":{vi:"Mật khẩu hiện tại",en:"Current Password"},
-    "New Password":{vi:"Mật khẩu mới",en:"New Password"},
-    "Confirm Password":{vi:"Xác nhận mật khẩu",en:"Confirm Password"},
-    "Change Password":{vi:"Đổi mật khẩu",en:"Change Password"},
-    "Change":{vi:"Đổi",en:"Change"},
-    "Login Name":{vi:"Tên đăng nhập",en:"Login Name"},
-    "Login Password":{vi:"Mật khẩu",en:"Login Password"},
-    "Employee ID":{vi:"Mã NV",en:"Employee ID"},
-    "Name":{vi:"Họ tên",en:"Name"},
-    "Full Name":{vi:"Họ tên",en:"Full Name"},
-    "Email":{vi:"Email",en:"Email"},
-    "Position":{vi:"Chức vụ",en:"Position"},
-    "Designations":{vi:"Chức vụ",en:"Designations"},
-    "Finger Print ID":{vi:"Mã vân tay",en:"Finger Print ID"},
-    "Fingerprint ID":{vi:"Mã vân tay",en:"Fingerprint ID"},
-    "Staff":{vi:"Nhân viên",en:"Staff"},
-    "Email ID":{vi:"Email",en:"Email ID"},
-    "Department":{vi:"Phòng ban",en:"Department"},
-    "Action":{vi:"Thao tác",en:"Action"},
-    "NO":{vi:"STT",en:"NO"},
-    "FULL NAME":{vi:"HỌ TÊN",en:"FULL NAME"},
-    "EMAIL":{vi:"EMAIL",en:"EMAIL"},
-    "DESIGNATIONS":{vi:"CHỨC VỤ",en:"DESIGNATIONS"},
-    "FINGER PRINT ID":{vi:"MÃ VÂN TAY",en:"FINGER PRINT ID"},
-    "MÃ NV":{vi:"MÃ NV",en:"EMPLOYEE ID"},
-    "THAO TÁC":{vi:"THAO TÁC",en:"ACTION"},
-    "Actions":{vi:"Thao tác",en:"Actions"},
-    "Delete":{vi:"Xóa",en:"Delete"},
-    "Edit":{vi:"Sửa",en:"Edit"},
-    "Scan":{vi:"Quét",en:"Scan"},
-    "Place Finger":{vi:"Đặt ngón tay",en:"Place Finger"},
-    "Download":{vi:"Tải xuống",en:"Download"},
-    "Upload":{vi:"Tải lên",en:"Upload"},
-    "Check":{vi:"Kiểm tra",en:"Check"},
-    "Backup":{vi:"Sao lưu",en:"Backup"},
-    "Restore":{vi:"Phục hồi",en:"Restore"},
-    "Sync check":{vi:"Kiểm tra đồng bộ",en:"Sync check"},
-    "Backup database":{vi:"Sao lưu database",en:"Backup database"},
-    "Restore database":{vi:"Phục hồi database",en:"Restore database"},
-    "Database Backup & Restore":{vi:"Sao lưu & Phục hồi DB",en:"Database Backup & Restore"},
-    "End current session":{vi:"Kết thúc phiên hiện tại",en:"End current session"},
-    "Compare database records vs sensor templates":{vi:"So sánh DB records với sensor templates",en:"Compare database records vs sensor templates"},
-    "BackupDesc":{vi:"Tải <code>backup.db</code> về trước khi chạy <code>uploadfs</code>",en:"Download <code>backup.db</code> before running <code>uploadfs</code>"},
-    "RestoreDesc":{vi:"Tải lên file <code>backup.db</code> đã sao lưu (thiết bị sẽ khởi động lại)",en:"Upload a previously backed-up <code>backup.db</code> (device will restart)"},
-    "Refresh":{vi:"Làm mới",en:"Refresh"},
-    "Connect":{vi:"Kết nối",en:"Connect"},
-    "Finish":{vi:"Hoàn tất",en:"Finish"},
-    "Restart":{vi:"Khởi động lại",en:"Restart"}
-  };
-  function getLang(){return localStorage.getItem('eetium_lang')||'vi';}
-  function apply(){
-    var lang=getLang();
-    document.querySelectorAll('[data-i18n]').forEach(function(el){
-      var key=el.getAttribute('data-i18n');
-      if(T[key]&&T[key][lang]!==undefined) el.textContent=T[key][lang];
-    });
-    document.querySelectorAll('[data-i18n-html]').forEach(function(el){
-      var key=el.getAttribute('data-i18n-html');
-      if(T[key]&&T[key][lang]!==undefined) el.innerHTML=T[key][lang];
-    });
-    document.querySelectorAll('button,label,h1,h2,h3,h4,h5,th,.brand-title,.form-label,option,a,span,.account-title,.field,.change,.signout-btn,.action-btn').forEach(function(el){
-      if(el.children.length>0) return;
-      if(el.hasAttribute('data-i18n')) return;
-      var key=el.getAttribute('data-i18n-key');
-      if(!key){
-        var t=(el.textContent||'').trim();
-        if(T[t]){key=t;el.setAttribute('data-i18n-key',key);}
-      }
-      if(key&&T[key]&&T[key][lang]!==undefined) el.textContent=T[key][lang];
-    });
-    // Placeholder auto-translate
-    document.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(function(el){
-      var key=el.getAttribute('data-i18n-ph-key');
-      if(!key){
-        var t=(el.getAttribute('placeholder')||'').trim();
-        if(T[t]){key=t;el.setAttribute('data-i18n-ph-key',key);}
-      }
-      if(key&&T[key]&&T[key][lang]!==undefined) el.setAttribute('placeholder',T[key][lang]);
-    });
-  }
-  function init(){
-    apply();
-    if(window.MutationObserver){
-      var pending=false;
-      new MutationObserver(function(){
-        if(pending) return; pending=true;
-        requestAnimationFrame(function(){apply();pending=false;});
-      }).observe(document.body,{childList:true,subtree:true});
-    }
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
-  else init();
-  window.i18n={apply:apply,getLang:getLang,setLang:function(l){localStorage.setItem('eetium_lang',l);location.reload();}};
-})();
-</script>
+<script src="/i18n.js"></script>
 </head>
 
 <body>
@@ -370,7 +289,13 @@ $(document).ready(function() {
           <!-- Google Script URL: full width -->
           <div class="mb-3">
             <label class="form-label" for="googlesid">Google Script URL</label>
-            <input class="form-control" type="text" id="googlesid" name="gsid" placeholder="https://script.google.com/macros/s/.../exec">
+            <div style="display:flex; gap:8px; align-items:stretch;">
+              <input class="form-control" type="text" id="googlesid" name="gsid"
+                     placeholder="https://script.google.com/macros/s/.../exec"
+                     readonly style="background:#f5f5f5;">
+              <button type="button" id="editGsidBtn" class="btn btn-secondary"
+                      style="white-space:nowrap;" onclick="toggleEditGsid()">Sửa</button>
+            </div>
           </div>
 
           <!-- Login credentials đã chuyển sang trang Account -->

@@ -78,6 +78,31 @@ bool storage_Init() {
       Serial.println("[DB] INDEX on attendance(fpid) ready");
     }
 
+    // ===== Bảng user_fingers: mapping eid → fpid (1..N vân tay/user, tối đa 5) =====
+    // Schema B: thay vì cứng 5 cột fpid trong attendance, dùng bảng phụ. Cho phép
+    // tái sử dụng fpid khi xóa user (không phân mảnh), và linh hoạt số vân tay.
+    sqlite3_exec(test1_db,
+        "CREATE TABLE IF NOT EXISTS user_fingers ("
+        "fpid INTEGER PRIMARY KEY, "  // PK = không trùng fpid nào trên sensor
+        "eid TEXT NOT NULL, "
+        "finger_label TEXT)",
+        0, 0, &zErr);
+    if (zErr) { Serial.printf("[DB] CREATE TABLE user_fingers failed: %s\n", zErr); sqlite3_free(zErr); }
+    else      { Serial.println("[DB] user_fingers table ready"); }
+
+    sqlite3_exec(test1_db, "CREATE INDEX IF NOT EXISTS idx_uf_eid ON user_fingers(eid);", 0, 0, &zErr);
+    if (zErr) sqlite3_free(zErr);
+
+    // Migration 1 lần: nếu attendance có fpid mà user_fingers chưa map → import.
+    // INSERT OR IGNORE: rows trùng PRIMARY KEY (fpid) bỏ qua → an toàn chạy nhiều lần.
+    sqlite3_exec(test1_db,
+        "INSERT OR IGNORE INTO user_fingers (fpid, eid, finger_label) "
+        "SELECT fpid, eid, 'Vân 1' FROM attendance "
+        "WHERE fpid IS NOT NULL AND fpid > 0 AND eid IS NOT NULL AND eid != ''",
+        0, 0, &zErr);
+    if (zErr) { Serial.printf("[DB] migrate user_fingers failed: %s\n", zErr); sqlite3_free(zErr); }
+    else      { Serial.println("[DB] user_fingers migration done"); }
+
     return true;
 }
 
@@ -142,6 +167,27 @@ void storage_LogUsage() {
     }
 }
 
+// Periodic check — main loop gọi mỗi 5 phút. Log warning + beep + OLED nếu critical.
+// Trả: 0 = OK, 1 = warn (>80% FS HOẶC heap < 30KB), 2 = critical (>95% HOẶC heap < 15KB).
+int storage_CheckLowWatermark() {
+    size_t total = LittleFS.totalBytes();
+    size_t used  = LittleFS.usedBytes();
+    float pct    = total > 0 ? (used * 100.0f / total) : 0.0f;
+    uint32_t freeHeap = ESP.getFreeHeap();
+
+    int level = 0;
+    if (pct > 95.0f || freeHeap < 15000) level = 2;
+    else if (pct > 80.0f || freeHeap < 30000) level = 1;
+
+    if (level == 2) {
+        Serial.printf("[FS] CRITICAL: FS=%.1f%% heap=%u — wipe DB/restart cần thiết\n",
+                      pct, (unsigned)freeHeap);
+    } else if (level == 1) {
+        Serial.printf("[FS] WARN: FS=%.1f%% heap=%u\n", pct, (unsigned)freeHeap);
+    }
+    return level;
+}
+
 // JSON dung lượng cho endpoint /storage — xem nhanh khi đang chạy.
 String storage_UsageJson() {
     size_t total = LittleFS.totalBytes();
@@ -156,13 +202,18 @@ String storage_UsageJson() {
     size_t blBytes; int blLines;
     backlogStats(&blBytes, &blLines);
 
-    char json[256];
+    char json[420];
     snprintf(json, sizeof(json),
         "{\"total\":%u,\"used\":%u,\"free\":%u,\"pct\":%.1f,"
-        "\"db\":%u,\"backlogBytes\":%u,\"backlogLines\":%d,\"estOfflinePunchesLeft\":%u}",
+        "\"db\":%u,\"backlogBytes\":%u,\"backlogLines\":%d,\"estOfflinePunchesLeft\":%u,"
+        "\"heap\":{\"free\":%u,\"min_free\":%u,\"max_alloc\":%u,\"total\":%u}}",
         (unsigned)total, (unsigned)used, (unsigned)freeB, pct,
         (unsigned)dbBytes, (unsigned)blBytes, blLines,
-        (unsigned)(freeB / OFFLINE_BYTES_PER_PUNCH));
+        (unsigned)(freeB / OFFLINE_BYTES_PER_PUNCH),
+        (unsigned)ESP.getFreeHeap(),
+        (unsigned)ESP.getMinFreeHeap(),
+        (unsigned)ESP.getMaxAllocHeap(),
+        (unsigned)ESP.getHeapSize());
     return String(json);
 }
 

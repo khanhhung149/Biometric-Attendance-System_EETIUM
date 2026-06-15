@@ -512,7 +512,7 @@ int fingerprint_Task() {
   }
 
   // Feedback INSTANT khi vừa chạm — user không tưởng máy treo
-  display_ShowMessage("Reading...");
+  display_ShowMessage("Đang quét...");
 
   // matchSync() block đồng bộ chờ sensor capture+match → có thể vượt WDT 15s.
   // Tạm bỏ loopTask khỏi WDT khi gọi, re-add sau.
@@ -529,7 +529,7 @@ int fingerprint_Task() {
                  && (result.matchScore >= MATCH_SCORE_THRESHOLD);
 
   if (!isMatch) {
-    display_ShowError("Try Again");
+    display_ShowError("Quét lại");
     beepBuzzer(2);
     delay(1500);
     return -1;
@@ -541,7 +541,7 @@ int fingerprint_Task() {
   String hr   = rtc_GetTimeString();   // giờ HH:MM:SS (local) — gửi lên Sheet
   String temp = rtc_GetDateString();   // ngày DD-MM-YYYY (local) — gửi lên Sheet
 
-  display_ShowMessage("Finger Verified!");
+  display_ShowMessage("Đã xác thực");
   delay(1000);
 
   uint16_t fpid = result.fingerprintId;
@@ -551,7 +551,7 @@ int fingerprint_Task() {
   if (fpid < 64 && lastScanTime[fpid] > 0) {
     time_t diff = now_sec - lastScanTime[fpid];
     if (diff < PUNCH_COOLDOWN_SECONDS) {
-      display_ShowError("Wait " + String(PUNCH_COOLDOWN_SECONDS - (long)diff) + "s");
+      display_ShowError("Chờ " + String(PUNCH_COOLDOWN_SECONDS - (long)diff) + "s");
       beepBuzzer(1);
       delay(1500);
       display_ShowMainScreen(rtc_GetDateString(), rtc_GetTimeString(), wifi_IsConnected());
@@ -566,7 +566,7 @@ int fingerprint_Task() {
 
   if (sqlrows == 0) {
     Serial.println("Fingerprint ID not found in attendance table");
-    display_ShowError("Not Registered");
+    display_ShowError("Chưa đăng ký");
     beepBuzzer(2);
     delay(2000);
     display_ShowMainScreen(rtc_GetDateString(), rtc_GetTimeString(), wifi_IsConnected());
@@ -582,7 +582,7 @@ int fingerprint_Task() {
     if (freeBytes < BACKLOG_FREE_CRITICAL) {
       // Hết chỗ → TỪ CHỐI lượt này. KHÔNG update lastScanTime để user có thể
       // quét lại sau khi mạng phục hồi (backlog drain → free trở lại).
-      display_ShowError("Storage Full\nWait Network");
+      display_ShowError("Bộ nhớ đầy\nChờ kết nối");
       beepBuzzer(5, 300);  // 5 beep dài cảnh báo rõ
       delay(3000);
       display_ShowMainScreen(rtc_GetDateString(), rtc_GetTimeString(), wifi_IsConnected());
@@ -592,7 +592,7 @@ int fingerprint_Task() {
     }
     if (freeBytes < BACKLOG_FREE_WARN && !backlogWarned) {
       // Backlog đã ăn 80% — cảnh báo 1 lần, vẫn nhận lượt này.
-      display_ShowError("Backlog 80%\nCheck Wifi");
+      display_ShowError("Buffer 80%\nKiểm tra WiFi");
       beepBuzzer(3, 150);
       delay(1500);
       Serial.printf("[Backlog] WARN: free=%u KB — kiem tra mang\n",
@@ -608,7 +608,7 @@ int fingerprint_Task() {
   // được backlog.txt lưu bền trên flash → có mạng lại tự đẩy lên).
   enqueueScan(temp, hr, Empid, Empname, EmpEmail, EmpPos);
 
-  display_ShowMessage("Hello:\n" + Empname);
+  display_ShowMessage("Xin chào:\n" + Empname);
   beepBuzzer(1);
   delay(2000);
 
@@ -724,12 +724,12 @@ uint8_t getFingerprintEnroll(uint8_t id) {
 
   // ===== Manual enrollment: ENROLL_COUNT lần capture =====
   for (int step = 1; step <= ENROLL_COUNT; step++) {
-    display_ShowMessage("Place Finger\n(" + String(step) + "/" + String(ENROLL_COUNT) + ")");
+    display_ShowMessage("Đặt vân tay\n(" + String(step) + "/" + String(ENROLL_COUNT) + ")");
 
     // Chờ user đặt ngón tay (TA tự kiểm soát timeout 20s)
     if (!fingerprint.waitForFinger(20000)) {
       Serial.print("[Enroll] Timeout waiting for finger at step "); Serial.println(step);
-      display_ShowError("Enroll Timeout");
+      display_ShowError("Quá thời gian");
       beepBuzzer(2);
       delay(1500);
       fingerprint.cancelOperation();
@@ -742,7 +742,7 @@ uint8_t getFingerprintEnroll(uint8_t id) {
       Serial.print("[Enroll] startEnrollment(step "); Serial.print(step);
       Serial.print(") failed: 0x"); Serial.println(err, HEX);
       if (++totalRetries > MAX_RETRIES) {
-        display_ShowError("Enroll Failed");
+        display_ShowError("Đăng ký thất bại");
         beepBuzzer(2);
         delay(1500);
         fingerprint.cancelOperation();
@@ -750,7 +750,7 @@ uint8_t getFingerprintEnroll(uint8_t id) {
       }
       // SYSTEM_BUSY cần đợi lâu hơn để sensor xong task trước
       int waitMs = (err == FP_ERROR_SYSTEM_BUSY) ? 1500 : 500;
-      display_ShowError("Try Again");
+      display_ShowError("Quét lại");
       beepBuzzer(2);
       fingerprint.cancelOperation();
       delay(waitMs);
@@ -779,7 +779,7 @@ uint8_t getFingerprintEnroll(uint8_t id) {
       Serial.println(fingerprint.getErrorString(err));
 
       if (err == FP_ERROR_DUPLICATE) {
-        display_ShowError("Already\nEnrolled");
+        display_ShowError("Đã đăng ký\ntrước đó");
         beepBuzzer(2);
         delay(2000);
         fingerprint.cancelOperation();
@@ -787,14 +787,14 @@ uint8_t getFingerprintEnroll(uint8_t id) {
       }
 
       if (++totalRetries > MAX_RETRIES) {
-        display_ShowError("Enroll Failed");
+        display_ShowError("Đăng ký thất bại");
         beepBuzzer(2);
         delay(1500);
         fingerprint.cancelOperation();
         return 0xFF;
       }
 
-      display_ShowError("Poor Image");
+      display_ShowError("Ảnh kém");
       beepBuzzer(2);
       fingerprint.cancelOperation();
       delay(500);
@@ -805,20 +805,20 @@ uint8_t getFingerprintEnroll(uint8_t id) {
 
     Serial.print("[Enroll] step "); Serial.print(step);
     Serial.print(" OK, progress="); Serial.print(result.progress); Serial.println("%");
-    display_ShowMessage("Step " + String(step) + " OK\n" + String(result.progress) + "%");
+    display_ShowMessage("Bước " + String(step) + " OK\n" + String(result.progress) + "%");
     beepBuzzer(1);
 
     if (result.completed && result.progress >= 100) {
       break;
     }
 
-    display_ShowMessage("Remove finger");
+    display_ShowMessage("Nhấc tay ra");
     fingerprint.waitForFingerRemoval(5000);
     delay(500);
   }
 
   // ===== Lưu template vào ID chỉ định =====
-  display_ShowMessage("Saving...");
+  display_ShowMessage("Đang lưu...");
   if (!fingerprint.saveTemplate((uint16_t)id)) {
     uint32_t saveErr = fingerprint.getLastError();
     Serial.print("[Enroll] saveTemplate cmd failed: 0x"); Serial.println(saveErr, HEX);
@@ -853,7 +853,7 @@ uint8_t getFingerprintEnroll(uint8_t id) {
 
   if (saveOK) {
     Serial.println("[Enroll] success, saved to ID " + String(id));
-    display_ShowMessage("Stored!\nID: " + String(id));
+    display_ShowMessage("Đã lưu!\nID: " + String(id));
     beepBuzzer(1);
     delay(1000);
     fingerprint.cancelOperation();
@@ -861,7 +861,7 @@ uint8_t getFingerprintEnroll(uint8_t id) {
   }
 
   Serial.print("[Enroll] save failed: 0x"); Serial.println(saveErr, HEX);
-  display_ShowError("Save Failed");
+  display_ShowError("Lưu thất bại");
   beepBuzzer(2);
   delay(1500);
   fingerprint.cancelOperation();

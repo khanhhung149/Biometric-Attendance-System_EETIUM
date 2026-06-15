@@ -55,7 +55,7 @@ static void startApFallback() {
         // Tách tại space đầu: "EETIUM-Biometric" / "Setup XXXX", font 6x10 fit thoải mái.
         display.clearBuffer();
         display.setFont(u8g2_font_ncenB08_tr);
-        oledDisplayCenter("WiFi Setup Mode", 0, 11);
+        oledDisplayCenter("Cấu hình WiFi", 0, 11);
         int sp = apSsid_.indexOf(' ');
         String l1 = (sp > 0) ? apSsid_.substring(0, sp) : apSsid_;
         String l2 = (sp > 0) ? apSsid_.substring(sp + 1) : "";
@@ -67,7 +67,7 @@ static void startApFallback() {
         display.sendBuffer();
     } else {
         Serial.println("softAP() failed!");
-        display_ShowError("AP Failed");
+        display_ShowError("Lỗi AP");
     }
 }
 
@@ -87,6 +87,14 @@ void wifi_InitAndConnect(){
     if (mdnsdotlocalurl == "") {
         mdnsdotlocalurl = DEFAULT_mdns;
     }
+
+#ifdef DEBUG_FORCE_WIFI
+    // DEBUG: override credentials từ config.h, bỏ qua LittleFS — test nhanh.
+    // Bỏ define DEBUG_FORCE_WIFI trong config.h để revert.
+    Serial.println("[DEBUG] DEBUG_FORCE_WIFI active — using DEFAULT_WIFI_SSID/PASS");
+    ssid_ = DEFAULT_WIFI_SSID;
+    pass_ = DEFAULT_WIFI_PASS;
+#endif
 
     WiFi.mode(WIFI_STA);
     // Bật auto-reconnect: WiFi stack ESP32 tự động kết nối lại NGAY khi mất sóng,
@@ -111,6 +119,12 @@ void wifi_InitAndConnect(){
     }
 
     if (ssid_ == "") {
+#ifdef DEBUG_FORCE_WIFI
+        // Không thể xảy ra vì DEBUG đã set ssid_ ở trên — safeguard
+        Serial.println("[DEBUG] no SSID — aborting WiFi init");
+        display_ShowError("Lỗi cấu hình WiFi");
+        return;
+#else
         Serial.println("No WiFi config found. Starting AP setup mode...");
         startApFallback();
         if (!MDNS.begin(mdnsdotlocalurl.c_str())) {
@@ -120,11 +134,12 @@ void wifi_InitAndConnect(){
             Serial.println("mDNS started: http://" + mdnsdotlocalurl + ".local");
         }
         return;  // không tiếp tục logic STA bên dưới
+#endif
     }
 
     Serial.println("Connecting to configured WiFi: " + ssid_);
     WiFi.begin(ssid_.c_str(), pass_.c_str());
-    display_ShowMessage("Connecting...");
+    display_ShowMessage("Đang kết nối...");
 
     int connectcount = 0;
     while (WiFi.status() != WL_CONNECTED && connectcount < 50) {
@@ -142,12 +157,18 @@ void wifi_InitAndConnect(){
                     IPAddress(8, 8, 8, 8), IPAddress(1, 1, 1, 1));
         display.clearBuffer();
         display.setFont(u8g2_font_ncenB08_tr);
-        oledDisplayCenter("WiFi Connected", 0, 20);
+        oledDisplayCenter("Đã kết nối WiFi", 0, 20);
         oledDisplayCenter(WiFi.localIP().toString(), 0,40);
         display.sendBuffer();
     } else {
+#ifdef DEBUG_FORCE_WIFI
+        Serial.println("\n[DEBUG] WiFi connect FAILED — KHÔNG fallback AP (debug mode)");
+        Serial.print("  SSID="); Serial.println(ssid_);
+        display_ShowError("WiFi thất bại");
+#else
         Serial.println("\nWiFi Connect Failed! Falling back to AP setup mode.");
         startApFallback();
+#endif
     }
 
     // Cấu hình mDNS

@@ -19,6 +19,9 @@ U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI display(U8G2_R2, /* clock=*/ 18, /* data
 }
 
 void oledDisplayCenter(String text, int x, int y) {
+  // Strip dấu UTF-8 (no-op cho ASCII) — cho phép gọi với chuỗi tiếng Việt
+  // trực tiếp mà không mất ký tự.
+  text = display_StripDiacritics(text);
   int width = display.getStrWidth(text.c_str());
   // +1 px bù lệch nửa pixel khi width lẻ (làm tròn xuống trong phép chia 2),
   // giúp text nhìn nghiêng về phải thay vì trái — vẫn cùng 1px tổng lệch.
@@ -81,18 +84,85 @@ void display_ShowMainScreen(String currentDate, String currentTime, bool wifi_Is
     // Footer: luôn hiện IP khi đã kết nối WiFi để user biết truy cập
     String footer;
     if (!wifi_IsConnected) {
-      footer = "!! No WiFi !!";
+      footer = "!! Mất WiFi !!";
     } else {
       footer = "IP:" + WiFi.localIP().toString();
     }
     oledDisplayCenter(footer, 0, 62);
     display.sendBuffer();
 }
+// Bỏ dấu UTF-8 tiếng Việt → ASCII để hiển thị OLED (U8g2 font _tr không render
+// được multi-byte UTF-8). Quét byte-by-byte, dò lead byte UTF-8 (2-byte 0xC3/C4/C6
+// hoặc 3-byte 0xE1 0xBA/BB cho khối Vietnamese Extended Additional U+1EA0..U+1EF9).
+// Ký tự không nhận diện → '?'. ASCII pass-through.
+String display_StripDiacritics(const String& s) {
+  String out;
+  out.reserve(s.length());
+  size_t i = 0;
+  while (i < s.length()) {
+    unsigned char c = (unsigned char)s[i];
+    if (c < 0x80) {                                      // ASCII
+      out += (char)c; i++;
+    } else if (c == 0xC3 && i + 1 < s.length()) {        // U+00C0..U+00FF (Latin-1 Suppl)
+      unsigned char c2 = (unsigned char)s[i + 1];
+      char r = '?';
+      if      (c2 >= 0x80 && c2 <= 0x85) r = 'A';
+      else if (c2 >= 0xA0 && c2 <= 0xA5) r = 'a';
+      else if (c2 >= 0x88 && c2 <= 0x8B) r = 'E';
+      else if (c2 >= 0xA8 && c2 <= 0xAB) r = 'e';
+      else if (c2 >= 0x8C && c2 <= 0x8F) r = 'I';
+      else if (c2 >= 0xAC && c2 <= 0xAF) r = 'i';
+      else if (c2 >= 0x92 && c2 <= 0x96) r = 'O';
+      else if (c2 >= 0xB2 && c2 <= 0xB6) r = 'o';
+      else if (c2 >= 0x99 && c2 <= 0x9C) r = 'U';
+      else if (c2 >= 0xB9 && c2 <= 0xBC) r = 'u';
+      else if (c2 == 0x9D)               r = 'Y';
+      else if (c2 == 0xBD || c2 == 0xBF) r = 'y';
+      out += r; i += 2;
+    } else if (c == 0xC4 && i + 1 < s.length()) {        // Latin Extended-A: Ă ă Đ đ
+      unsigned char c2 = (unsigned char)s[i + 1];
+      char r = '?';
+      if      (c2 == 0x82) r = 'A';
+      else if (c2 == 0x83) r = 'a';
+      else if (c2 == 0x90) r = 'D';
+      else if (c2 == 0x91) r = 'd';
+      out += r; i += 2;
+    } else if (c == 0xC6 && i + 1 < s.length()) {        // Latin Extended-B: Ơ ơ Ư ư
+      unsigned char c2 = (unsigned char)s[i + 1];
+      char r = '?';
+      if      (c2 == 0xA0) r = 'O';
+      else if (c2 == 0xA1) r = 'o';
+      else if (c2 == 0xAF) r = 'U';
+      else if (c2 == 0xB0) r = 'u';
+      out += r; i += 2;
+    } else if (c == 0xE1 && i + 2 < s.length()) {        // U+1EA0..U+1EF9 Vietnamese block
+      unsigned char c2 = (unsigned char)s[i + 1];
+      unsigned char c3 = (unsigned char)s[i + 2];
+      uint32_t cp = ((uint32_t)(c & 0x0F) << 12)
+                  | ((uint32_t)(c2 & 0x3F) << 6)
+                  | (uint32_t)(c3 & 0x3F);
+      char r = '?';
+      if      (cp >= 0x1EA0 && cp <= 0x1EB7) r = (cp & 1) ? 'a' : 'A';
+      else if (cp >= 0x1EB8 && cp <= 0x1EC7) r = (cp & 1) ? 'e' : 'E';
+      else if (cp >= 0x1EC8 && cp <= 0x1ECB) r = (cp & 1) ? 'i' : 'I';
+      else if (cp >= 0x1ECC && cp <= 0x1EE3) r = (cp & 1) ? 'o' : 'O';
+      else if (cp >= 0x1EE4 && cp <= 0x1EF1) r = (cp & 1) ? 'u' : 'U';
+      else if (cp >= 0x1EF2 && cp <= 0x1EF9) r = (cp & 1) ? 'y' : 'Y';
+      out += r; i += 3;
+    } else {
+      out += '?'; i++;
+      while (i < s.length() && ((unsigned char)s[i] & 0xC0) == 0x80) i++;
+    }
+  }
+  return out;
+}
+
 void display_ShowMessage(const String& msg){
     display.clearBuffer();
     display.setFont(u8g2_font_ncenB08_tr);
-    // Căn giữa toàn bộ màn hình 64px, line height ~14px (đủ thoáng cho font 8pt)
-    oledDisplayMultiLineCenter(msg, 0, 64, 14);
+    // Strip dấu trước khi vẽ — font _tr không render UTF-8 Vietnamese (ấ, ậ, ư...)
+    // → tên có dấu sẽ mất ký tự. Sheet vẫn giữ tên đầy đủ; chỉ OLED hiển thị ASCII.
+    oledDisplayMultiLineCenter(display_StripDiacritics(msg), 0, 64, 14);
     display.sendBuffer();
 }
 
@@ -100,7 +170,6 @@ void display_ShowError(const String& msg) {
     display.clearBuffer();
     display.setFont(u8g2_font_ncenB08_tr);
     display.drawXBM(47, 0, 35, 35, invalid_bmp);
-    // Đặt text ở vùng dưới icon (35-64px)
-    oledDisplayMultiLineCenter(msg, 35, 64, 12);
+    oledDisplayMultiLineCenter(display_StripDiacritics(msg), 35, 64, 12);
     display.sendBuffer();
 }

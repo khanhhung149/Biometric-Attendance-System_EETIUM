@@ -36,11 +36,14 @@ static void startApFallback() {
     apSsid_ = "EETIUM-Biometric Setup ";
     apSsid_ += suffix;
 
-    if (WiFi.softAP(apSsid_.c_str())) {
+    // WPA2-PSK: AP_PASSWORD chống open WiFi attack. Hacker phải biết password
+    // (ghi trên sticker thiết bị) mới connect được AP setup.
+    if (WiFi.softAP(apSsid_.c_str(), AP_PASSWORD)) {
         apIP_ = WiFi.softAPIP().toString();
         wifi_apMode = true;
         Serial.print("AP mode: SSID="); Serial.print(apSsid_);
         Serial.print("  IP="); Serial.println(apIP_);
+        SECURE_LOG("AP password: %s\n", AP_PASSWORD);    // chỉ dev build mới in
 
         // DNS hijack: trả mọi domain về IP của ESP để trigger captive portal
         dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -51,23 +54,22 @@ static void startApFallback() {
         WiFi.scanNetworks(true, false);
         Serial.println("WiFi scan started (async)");
 
-        // SSID "EETIUM-Biometric Setup XXXX" dài 27 chars → font 8pt overflow 128px OLED.
-        // Tách tại space đầu: "EETIUM-Biometric" / "Setup XXXX", font 6x10 fit thoải mái.
+        // OLED chỉ hiện SSID + IP, KHÔNG hiện password (chống xem qua vai).
+        // Password admin biết qua sticker/manual riêng — không leak qua màn hình.
         display.clearBuffer();
-        display.setFont(u8g2_font_ncenB08_tr);
-        oledDisplayCenter("WiFi Setup Mode", 0, 11);
+        display.setFont(DISPLAY_VN_FONT);
+        oledDisplayCenter("Cấu hình WiFi", 0, 13);
         int sp = apSsid_.indexOf(' ');
         String l1 = (sp > 0) ? apSsid_.substring(0, sp) : apSsid_;
         String l2 = (sp > 0) ? apSsid_.substring(sp + 1) : "";
         display.setFont(u8g2_font_6x10_tr);
-        oledDisplayCenter(l1, 0, 26);
-        oledDisplayCenter(l2, 0, 38);
-        display.setFont(u8g2_font_ncenB08_tr);
+        oledDisplayCenter(l1, 0, 28);
+        oledDisplayCenter(l2, 0, 40);
         oledDisplayCenter(apIP_, 0, 58);
         display.sendBuffer();
     } else {
         Serial.println("softAP() failed!");
-        display_ShowError("AP Failed");
+        display_ShowError("Lỗi AP");
     }
 }
 
@@ -122,7 +124,7 @@ void wifi_InitAndConnect(){
 #ifdef DEBUG_FORCE_WIFI
         // Không thể xảy ra vì DEBUG đã set ssid_ ở trên — safeguard
         Serial.println("[DEBUG] no SSID — aborting WiFi init");
-        display_ShowError("WiFi Cfg Err");
+        display_ShowError("Lỗi cấu hình WiFi");
         return;
 #else
         Serial.println("No WiFi config found. Starting AP setup mode...");
@@ -139,7 +141,7 @@ void wifi_InitAndConnect(){
 
     Serial.println("Connecting to configured WiFi: " + ssid_);
     WiFi.begin(ssid_.c_str(), pass_.c_str());
-    display_ShowMessage("Connecting...");
+    display_ShowMessage("Đang kết nối...");
 
     int connectcount = 0;
     while (WiFi.status() != WL_CONNECTED && connectcount < 50) {
@@ -156,15 +158,16 @@ void wifi_InitAndConnect(){
         WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(),
                     IPAddress(8, 8, 8, 8), IPAddress(1, 1, 1, 1));
         display.clearBuffer();
-        display.setFont(u8g2_font_ncenB08_tr);
-        oledDisplayCenter("WiFi Connected", 0, 20);
-        oledDisplayCenter(WiFi.localIP().toString(), 0,40);
+        display.setFont(DISPLAY_VN_FONT);
+        oledDisplayCenter("Đã kết nối WiFi", 0, 22);
+        display.setFont(u8g2_font_6x12_tr);               // IP (ASCII) — font nhỏ
+        oledDisplayCenter(WiFi.localIP().toString(), 0, 42);
         display.sendBuffer();
     } else {
 #ifdef DEBUG_FORCE_WIFI
         Serial.println("\n[DEBUG] WiFi connect FAILED — KHÔNG fallback AP (debug mode)");
         Serial.print("  SSID="); Serial.println(ssid_);
-        display_ShowError("WiFi Failed");
+        display_ShowError("WiFi thất bại");
 #else
         Serial.println("\nWiFi Connect Failed! Falling back to AP setup mode.");
         startApFallback();

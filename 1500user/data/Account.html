@@ -14,9 +14,10 @@
   .account-row .value code { background: #f3f3f3; color: #222; padding: 1px 6px; border-radius: 4px; font-family: Consolas, "Courier New", monospace; font-size: 13px; }
   .account-row .change { flex: 0 0 auto; color: #f7c948; cursor: pointer; text-decoration: underline; font-weight: 500; background: none; border: none; padding: 4px 8px; font-size: 14px; }
   .account-row .change:hover { color: #ffd966; }
-  .account-row .signout-btn { flex: 0 0 auto; padding: 8px 18px; background: #dc3545; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
-  .account-row .signout-btn:hover { background: #bb2d3b; }
-  .account-row .action-btn { flex: 0 0 auto; padding: 8px 16px; background: #495057; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; margin-left: 6px; }
+  .account-row .signout-btn { flex: 0 0 auto; padding: 8px 18px; background: #e74c3c; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,.1); transition: all .15s; }
+  .account-row .signout-btn:hover { background: #c0392b; box-shadow: 0 3px 6px rgba(0,0,0,.15); }
+  .account-row .action-btn { flex: 0 0 auto; padding: 8px 16px; background: #1a73e8; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; margin-left: 6px; box-shadow: 0 2px 4px rgba(0,0,0,.1); transition: all .15s; }
+  .account-row .action-btn:hover { background: #1557b0; box-shadow: 0 3px 6px rgba(0,0,0,.15); }
   .account-row .action-btn:hover { background: #343a40; }
   .account-row .action-btn.warn { background: #f7c948; color: #333; }
   .account-row .action-btn.warn:hover { background: #ffd966; }
@@ -42,7 +43,7 @@
   /* Modal */
   .modal-backdrop { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.55); z-index: 1000; align-items: center; justify-content: center; padding: 12px; }
   .modal-backdrop.show { display: flex; }
-  .modal-box { background: #696969; border-radius: 10px; max-width: 400px; width: 100%; color: #fff; overflow: hidden; }
+  .modal-box { background: #696969; border-radius: 10px; max-width: 400px; width: 100%; color: #fff; overflow: visible; }
   .modal-head { padding: 14px 20px; border-bottom: 1px solid #5a5a5a; text-align: center; font-size: 15px; font-weight: 600; }
   .modal-body { padding: 20px; }
   .modal-body .grp { margin-bottom: 16px; }
@@ -63,6 +64,52 @@
   .modal-msg { padding: 8px 12px; border-radius: 6px; font-size: 13px; text-align: center; margin-bottom: 12px; display: none; }
   .modal-msg.ok { display: block; background: #1f5132; color: #d4edda; }
   .modal-msg.err { display: block; background: #5c1a1f; color: #f8d7da; }
+
+  /* Backup to Sheet modal */
+  .bs-stats { margin-bottom: 16px; }
+  .bs-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px; border-bottom: 1px solid #5a5a5a; font-size: 13px; }
+  .bs-row:last-child { border-bottom: none; }
+  .bs-k { color: #ddd; }
+  .bs-v { color: #fff; font-weight: 600; }
+  .bs-v.ok { color: #b8e6c0; }
+  .bs-v.bad { color: #f8b8be; }
+  .modal-body input[type="date"] { padding-right: 12px; color-scheme: dark; }
+  .bs-bar { background: #4a4a4a; border-radius: 4px; height: 8px; overflow: hidden; margin-top: 6px; }
+  .bs-fill { background: #198754; height: 100%; width: 0%; transition: width .3s; }
+
+  /* Custom datepicker — dark theme */
+  .dp-wrap { position: relative; }
+  .dp-trigger { width: 100%; padding: 10px 12px; background: #5a5a5a; border: 1px solid #4a4a4a; border-radius: 6px;
+                color: #fff; font-size: 14px; text-align: left; cursor: pointer; display: flex;
+                justify-content: space-between; align-items: center; font-family: inherit; }
+  .dp-trigger:hover { background: #6a6a6a; }
+  .dp-trigger:focus { outline: none; border-color: #888; }
+  .dp-display { flex: 1; }
+  .dp-icon { font-size: 16px; opacity: 0.8; }
+  .dp-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 1500;
+            background: #4a4a4a; border: 1px solid #6a6a6a; border-radius: 8px;
+            padding: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.4); width: 280px;
+            display: none; }
+  .dp-pop.show { display: block; }
+  .dp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .dp-nav { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; padding: 4px 10px; border-radius: 4px; }
+  .dp-nav:hover { background: #5a5a5a; }
+  .dp-title { color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+  .dp-title:hover { background: #5a5a5a; }
+  .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .dp-dow { color: #aaa; font-size: 11px; text-align: center; padding: 4px 0; font-weight: 600; }
+  .dp-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+             font-size: 13px; color: #fff; border-radius: 4px; cursor: pointer; user-select: none; }
+  .dp-cell.empty { visibility: hidden; }
+  .dp-cell.has-data { background: #2d5a3d; color: #b8e6c0; font-weight: 600; }
+  .dp-cell.has-data:hover { background: #3d7a5d; }
+  .dp-cell.no-data { color: #666; cursor: not-allowed; }
+  .dp-cell.selected { background: #198754 !important; color: #fff !important; }
+  .dp-cell.today { border: 1px solid #f7c948; }
+  .dp-months, .dp-years { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .dp-mon-cell, .dp-yr-cell { padding: 8px; text-align: center; color: #fff; cursor: pointer; border-radius: 4px; font-size: 13px; }
+  .dp-mon-cell:hover, .dp-yr-cell:hover { background: #5a5a5a; }
+  .dp-foot { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: #aaa; }
 </style>
 <script src="/i18n.js"></script>
 </head>
@@ -90,22 +137,63 @@
   <div class="account-title" data-i18n="Database Backup & Restore">Database Backup &amp; Restore</div>
   <div class="account-row">
     <div class="field" data-i18n="Backup database">Backup database</div>
-    <div class="value" data-i18n-html="BackupDesc">Download <code>backup.db</code> before running <code>uploadfs</code></div>
-    <button class="action-btn" onclick="doBackup()" data-i18n="Download">Download</button>
+    <div class="value" data-i18n="Download full backup (DB + fingerprints)">Tải xuống backup đầy đủ (DB + vân tay)</div>
+    <button class="action-btn" onclick="doBackupFull()" data-i18n="Download">Tải xuống</button>
   </div>
   <div class="account-row">
     <div class="field" data-i18n="Restore database">Restore database</div>
-    <div class="value" data-i18n-html="RestoreDesc">Upload a previously backed-up <code>backup.db</code> (device will restart)</div>
-    <input type="file" id="restoreFile" class="file-hidden" accept=".db" onchange="doRestore()">
-    <button class="action-btn warn" onclick="document.getElementById('restoreFile').click()" data-i18n="Upload">Upload</button>
+    <div class="value" data-i18n="Upload .eetiumbk backup file (device will restart)">Tải lên file backup .eetiumbk (thiết bị sẽ khởi động lại)</div>
+    <input type="file" id="restoreFullFile" class="file-hidden" accept=".eetiumbk,.bin" onchange="doRestoreFull()">
+    <button class="action-btn" onclick="document.getElementById('restoreFullFile').click()" data-i18n="Restore">Phục hồi</button>
   </div>
   <div class="account-row">
     <div class="field" data-i18n="Sync check">Sync check</div>
     <div class="value" data-i18n="Compare database records vs sensor templates">Compare database records vs sensor templates</div>
     <button class="action-btn" onclick="doSync()" id="syncBtn" data-i18n="Check">Check</button>
   </div>
-  <div class="account-row" style="padding-top: 0; border-top: none;">
-    <div class="sync-result" id="syncResult"></div>
+  <div class="account-row" style="padding: 0; border-bottom: none;">
+    <div class="sync-result" id="syncResult" style="margin: 0 20px;"></div>
+  </div>
+  <div class="account-row">
+    <div class="field" data-i18n="Backup to Sheet">Backup to Sheet</div>
+    <div class="value" data-i18n="Re-upload scan history from W25Q128 to Google Sheet by date range">Re-upload scan history from W25Q128 to Google Sheet by date range</div>
+    <button class="action-btn" onclick="openBackupSheetModal()" data-i18n="Backup">Backup</button>
+  </div>
+  <div class="account-row">
+    <div class="field" data-i18n="Auto backup">Auto backup</div>
+    <div class="value">
+      <span id="cronStatusText" data-i18n="Cron disabled">Cron disabled</span>
+    </div>
+    <button class="action-btn" onclick="openCronModal()" style="background:#1a73e8;color:#fff;" data-i18n="Configure">Configure</button>
+  </div>
+  <div class="account-row">
+    <div class="field" data-i18n="Firmware update">Firmware update</div>
+    <div class="value">
+      <span data-i18n="Upload .bin to update over WiFi">Upload .bin to update over WiFi</span>
+      <span id="otaProgress" style="margin-left:8px;color:#0d6efd;font-weight:600;"></span>
+    </div>
+    <input type="file" id="firmwareFile" class="file-hidden" accept=".bin" onchange="doFirmwareUpdate()">
+    <button class="action-btn" onclick="document.getElementById('firmwareFile').click()" style="background:#1a73e8;color:#fff;" data-i18n="Update FW">Update FW</button>
+  </div>
+  <!-- OTA Token row — DEPRECATED, thay bằng TOTP 2FA. Re-enable: uncomment + remove
+       cleanup line in main.cpp setup(). Backend endpoints (/ota_token_*) vẫn còn. -->
+  <!--
+  <div class="account-row">
+    <div class="field" data-i18n="OTA token">OTA token</div>
+    <div class="value">
+      <span id="otaTokenStatus" data-i18n="No token (cookie auth only)">No token (cookie auth only)</span>
+    </div>
+    <button class="action-btn" onclick="otaTokenGen()" style="background:#1a73e8;color:#fff;" data-i18n="Generate">Generate</button>
+    <button class="action-btn" onclick="otaTokenDel()" style="background:#95a5a6;color:#fff;margin-left:6px;" data-i18n="Clear">Clear</button>
+  </div>
+  -->
+  <div class="account-row">
+    <div class="field" data-i18n="2FA (TOTP)">2FA (TOTP)</div>
+    <div class="value">
+      <span id="totpStatusText" data-i18n="2FA not setup">2FA not setup</span>
+    </div>
+    <button class="action-btn" onclick="totpSetup()" style="background:#1a73e8;color:#fff;" data-i18n="Setup">Setup</button>
+    <button class="action-btn" onclick="totpClearOp()" style="background:#95a5a6;color:#fff;margin-left:6px;" data-i18n="Clear">Clear</button>
   </div>
 </div>
 
@@ -171,6 +259,160 @@
   </div>
 </div>
 
+<!-- Auto Backup Cron Modal -->
+<div class="modal-backdrop" id="cronModal" onclick="if(event.target===this)closeCronModal()">
+  <div class="modal-box" style="max-width: 420px;">
+    <div class="modal-head" data-i18n="Auto backup config">Cài đặt tự động backup</div>
+    <div class="modal-body">
+      <div class="modal-msg" data-i18n="Auto sync to Sheet on schedule">Tự động upload lên Sheet theo lịch</div>
+      <div class="grp">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+          <input type="checkbox" id="cronEnabled" style="width:18px;height:18px;padding:0;margin:0;flex:0 0 auto;">
+          <span data-i18n="Enable auto backup">Bật auto backup</span>
+        </label>
+      </div>
+      <div class="grp">
+        <label data-i18n="Day">Ngày</label>
+        <select id="cronDow" style="width:100%;padding:8px;background:#5a5a5a;color:#fff;border:1px solid #777;border-radius:6px;">
+          <option value="7" data-i18n="Daily">Mỗi ngày</option>
+          <option value="0" data-i18n="Sunday">Chủ nhật</option>
+          <option value="1" data-i18n="Monday">Thứ 2</option>
+          <option value="2" data-i18n="Tuesday">Thứ 3</option>
+          <option value="3" data-i18n="Wednesday">Thứ 4</option>
+          <option value="4" data-i18n="Thursday">Thứ 5</option>
+          <option value="5" data-i18n="Friday">Thứ 6</option>
+          <option value="6" data-i18n="Saturday">Thứ 7</option>
+        </select>
+      </div>
+      <div class="grp">
+        <label data-i18n="Hour (0-23)">Giờ (0-23)</label>
+        <input type="number" id="cronHour" min="0" max="23" value="2" style="width:100%;padding:8px;background:#5a5a5a;color:#fff;border:1px solid #777;border-radius:6px;">
+      </div>
+      <div class="grp">
+        <label data-i18n="Days back to backup">Số ngày backup ngược</label>
+        <input type="number" id="cronDays" min="1" max="30" value="7" style="width:100%;padding:8px;background:#5a5a5a;color:#fff;border:1px solid #777;border-radius:6px;">
+      </div>
+      <div id="cronLastRun" style="font-size:12px;color:#aaa;margin-top:8px;"></div>
+      <div class="modal-foot">
+        <button class="modal-btn" onclick="closeCronModal()" data-i18n="Cancel">Cancel</button>
+        <button class="modal-btn primary" onclick="cronSubmit()" data-i18n="Save">Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOTP Setup Modal -->
+<div class="modal-backdrop" id="totpSetupModal" onclick="if(event.target===this)closeTotpSetup()">
+  <div class="modal-box" style="max-width: 460px;">
+    <div class="modal-head" data-i18n="2FA Setup">2FA Setup</div>
+    <div class="modal-body">
+      <div class="modal-msg">
+        <p data-i18n="Scan QR with Google Authenticator/Authy">Quét QR bằng Google Authenticator / Authy</p>
+      </div>
+      <div style="text-align:center;margin:12px 0;">
+        <img id="totpQrImg" style="width:240px;height:240px;border:1px solid #ddd;background:#fff;" alt="QR">
+      </div>
+      <div style="font-size:12px;color:#ccc;margin-bottom:8px;">
+        <span data-i18n="Or manual secret">Hoặc nhập secret thủ công</span>:
+        <code id="totpSecretText" style="font-family:monospace;font-size:12px;word-break:break-all;display:block;background:#fff;color:#000;padding:6px;margin-top:4px;border-radius:4px;font-weight:600;"></code>
+      </div>
+      <div style="background:#fff3cd;border:1px solid #ffe69c;padding:8px;border-radius:6px;margin:10px 0;color:#664d03;">
+        <b data-i18n="Recovery codes — save now!" style="color:#664d03;">Recovery codes — lưu ngay!</b>
+        <div data-i18n="Use if you lose phone" style="color:#664d03;font-size:12px;">Dùng khi mất phone. Mỗi mã 1 lần.</div>
+        <pre id="totpRecoveryList" style="font-family:monospace;font-size:14px;margin:8px 0 0;white-space:pre-wrap;color:#000;background:#fff;padding:6px;border-radius:4px;font-weight:600;letter-spacing:1px;"></pre>
+      </div>
+      <div class="grp">
+        <label data-i18n="Enter code from app to confirm">Nhập mã 6 số từ app để xác nhận</label>
+        <input type="text" id="totpConfirmCode" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="123456" style="font-family:monospace;font-size:18px;text-align:center;letter-spacing:6px;">
+      </div>
+      <div class="modal-foot">
+        <button class="modal-btn" onclick="closeTotpSetup()" data-i18n="Cancel">Cancel</button>
+        <button class="modal-btn primary" onclick="totpConfirm()" data-i18n="Confirm setup">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generic Prompt Modal — thay window.prompt(). z-index cao để hiện trên modal khác. -->
+<div class="modal-backdrop" id="genericPromptModal" style="z-index:3000;" onclick="if(event.target===this)_promptCancel()">
+  <div class="modal-box" style="max-width: 380px;">
+    <div class="modal-head" id="genericPromptTitle">Input</div>
+    <div class="modal-body">
+      <div class="modal-msg" id="genericPromptMsg"></div>
+      <div class="grp">
+        <input type="text" id="genericPromptInput" style="width:100%;font-family:inherit;">
+      </div>
+      <div class="modal-foot">
+        <button class="modal-btn" onclick="_promptCancel()" data-i18n="Cancel">Cancel</button>
+        <button class="modal-btn primary" onclick="_promptOk()" data-i18n="OK">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOTP Input Modal (cho sensitive ops). z-index cao hơn các modal khác (1000)
+     để hiện trên top khi gọi từ trong modal Backup/Restore. -->
+<div class="modal-backdrop" id="totpInputModal" style="z-index:3000;" onclick="if(event.target===this)closeTotpInput()">
+  <div class="modal-box" style="max-width: 360px;">
+    <div class="modal-head" data-i18n="Enter 2FA code">Nhập mã 2FA</div>
+    <div class="modal-body">
+      <div class="modal-msg" id="totpInputMsg" data-i18n="Open Google Authenticator and enter the 6-digit code">Mở app Authenticator và nhập mã 6 số</div>
+      <div class="grp">
+        <input type="text" id="totpInputCode" maxlength="8" inputmode="text" autocomplete="off" placeholder="123456" style="font-family:monospace;font-size:20px;text-align:center;letter-spacing:6px;text-transform:uppercase;">
+      </div>
+      <div style="font-size:11px;color:#999;margin-top:-8px;" data-i18n="Or paste an 8-char recovery code">Hoặc paste recovery code 8 ký tự</div>
+      <div class="modal-foot">
+        <button class="modal-btn" onclick="closeTotpInput()" data-i18n="Cancel">Cancel</button>
+        <button class="modal-btn primary" onclick="totpInputSubmit()" data-i18n="Submit">Gửi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backup to Sheet Modal -->
+<div class="modal-backdrop" id="backupSheetModal" onclick="if(event.target===this)closeBackupSheetModal()">
+  <div class="modal-box" style="max-width: 420px;">
+    <div class="modal-head" data-i18n="Backup to Sheet">Backup to Sheet</div>
+    <div class="modal-body">
+      <div class="modal-msg" id="backupSheetMsg"></div>
+      <div class="bs-stats">
+        <div class="bs-row"><span class="bs-k" data-i18n="Status">Status</span><span class="bs-v" id="bsStatus">—</span></div>
+        <div class="bs-row"><span class="bs-k" data-i18n="Total records">Total records</span><span class="bs-v" id="bsValid">—</span></div>
+        <div class="bs-row"><span class="bs-k" data-i18n="Pending sync">Pending sync</span><span class="bs-v" id="bsPending">—</span></div>
+      </div>
+      <div class="grp">
+        <label data-i18n="From date">From date</label>
+        <!-- Custom datepicker: hidden ISO value + visible display + popup calendar -->
+        <div class="dp-wrap" data-dp="bsFromDate">
+          <input type="hidden" id="bsFromDate" value="">
+          <button type="button" class="dp-trigger" id="bsFromDateTrigger" onclick="dpOpen('bsFromDate')">
+            <span class="dp-display" id="bsFromDateDisplay">—</span>
+            <span class="dp-icon">📅</span>
+          </button>
+        </div>
+      </div>
+      <div class="grp">
+        <label data-i18n="To date">To date</label>
+        <div class="dp-wrap" data-dp="bsToDate">
+          <input type="hidden" id="bsToDate" value="">
+          <button type="button" class="dp-trigger" id="bsToDateTrigger" onclick="dpOpen('bsToDate')">
+            <span class="dp-display" id="bsToDateDisplay">—</span>
+            <span class="dp-icon">📅</span>
+          </button>
+        </div>
+      </div>
+      <div class="grp" id="bsProgress" style="display: none;">
+        <label><span data-i18n="Uploading">Uploading</span>: <span id="bsSent">0</span></label>
+        <div class="bs-bar"><div id="bsFill" class="bs-fill"></div></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeBackupSheetModal()" data-i18n="Cancel">Cancel</button>
+      <button class="btn-ok" id="bsRunBtn" onclick="submitBackupSheet()" data-i18n="Backup">Backup</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function loadUsername(){
   var x=new XMLHttpRequest();
@@ -197,6 +439,339 @@ function openPassModal(){
 }
 function closePassModal(){ document.getElementById('passModal').classList.remove('show'); }
 function showMsg(id,txt,cls){ var m=document.getElementById(id); m.textContent=txt; m.className='modal-msg '+cls; }
+
+// ===== Backup to Sheet (W25Q128) =====
+// Custom datepicker state — share giữa from/to.
+var DP = {
+  validDates: new Set(),   // ISO strings từ /api/logs/dates
+  loaded: false,
+  active: null,            // id input đang mở popup
+  viewYear: 0,
+  viewMonth: 0,
+  viewMode: 'day'          // 'day' | 'month' | 'year'
+};
+
+function dpLang(){ return localStorage.getItem('eetium_lang') || 'vi'; }
+function dpPad(n){ return n < 10 ? '0' + n : '' + n; }
+function dpToIso(y, m, d){ return y + '-' + dpPad(m+1) + '-' + dpPad(d); }
+function dpFormatDisplay(iso){
+  if (!iso) return '—';
+  var p = iso.split('-');
+  return dpLang() === 'vi' ? (p[2] + '/' + p[1] + '/' + p[0]) : iso;
+}
+function dpMonthNames(){
+  return dpLang() === 'vi'
+    ? ['Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12']
+    : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+}
+function dpDayNames(){
+  return dpLang() === 'vi'
+    ? ['CN','T2','T3','T4','T5','T6','T7']
+    : ['Su','Mo','Tu','We','Th','Fr','Sa'];
+}
+
+function dpLoadDates(callback){
+  fetch('/api/logs/dates').then(function(r){return r.json();}).then(function(res){
+    DP.validDates = new Set(res.dates || []);
+    DP.loaded = true;
+    // Tính min/max date có data để default + auto-navigate.
+    if (res.dates && res.dates.length > 0) {
+      var sorted = res.dates.slice().sort();
+      DP.minDate = sorted[0];
+      DP.maxDate = sorted[sorted.length - 1];
+    } else {
+      DP.minDate = null; DP.maxDate = null;
+    }
+    if (callback) callback();
+  }).catch(function(){
+    DP.loaded = true;
+    if (callback) callback();
+  });
+}
+
+// Tìm tháng gần nhất CÓ data so với (year, month). Trả {y, m} hoặc null.
+function dpFindNearestMonthWithData(y, m){
+  if (DP.validDates.size === 0) return null;
+  var arr = Array.from(DP.validDates).sort();
+  var target = y + '-' + dpPad(m+1);
+  // Tìm date đầu tiên >= target
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].slice(0,7) >= target) {
+      var p = arr[i].split('-');
+      return { y: parseInt(p[0],10), m: parseInt(p[1],10)-1 };
+    }
+  }
+  // Nếu không có tháng nào >= target → dùng tháng cuối cùng có data
+  var last = arr[arr.length-1].split('-');
+  return { y: parseInt(last[0],10), m: parseInt(last[1],10)-1 };
+}
+
+function dpOpen(id){
+  // Đóng popup khác nếu có
+  document.querySelectorAll('.dp-pop').forEach(function(p){ p.classList.remove('show'); });
+  DP.active = id;
+  var iso = document.getElementById(id).value;
+  var d = iso ? new Date(iso + 'T00:00:00') : new Date();
+  DP.viewYear = d.getFullYear();
+  DP.viewMonth = d.getMonth();
+  // Nếu tháng hiện tại không có data nào → tự nhảy tới tháng gần nhất có data.
+  if (DP.validDates.size > 0) {
+    var monthKey = DP.viewYear + '-' + dpPad(DP.viewMonth+1);
+    var hasMonthData = false;
+    DP.validDates.forEach(function(d){
+      if (d.slice(0,7) === monthKey) hasMonthData = true;
+    });
+    if (!hasMonthData) {
+      var near = dpFindNearestMonthWithData(DP.viewYear, DP.viewMonth);
+      if (near) { DP.viewYear = near.y; DP.viewMonth = near.m; }
+    }
+  }
+  DP.viewMode = 'day';
+  dpRender();
+}
+
+function dpClose(){
+  if (!DP.active) return;
+  var wrap = document.querySelector('.dp-wrap[data-dp="' + DP.active + '"]');
+  var pop = wrap.querySelector('.dp-pop');
+  if (pop) pop.classList.remove('show');
+  DP.active = null;
+}
+
+function dpRender(){
+  if (!DP.active) return;
+  var wrap = document.querySelector('.dp-wrap[data-dp="' + DP.active + '"]');
+  var pop = wrap.querySelector('.dp-pop');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.className = 'dp-pop';
+    wrap.appendChild(pop);
+  }
+  var html = '';
+  if (DP.viewMode === 'day') {
+    html += renderDayGrid();
+  } else if (DP.viewMode === 'month') {
+    html += renderMonthGrid();
+  } else {
+    html += renderYearGrid();
+  }
+  pop.innerHTML = html;
+  pop.classList.add('show');
+}
+
+function renderDayGrid(){
+  var months = dpMonthNames();
+  var dows = dpDayNames();
+  var y = DP.viewYear, m = DP.viewMonth;
+  var first = new Date(y, m, 1).getDay();
+  var daysInMonth = new Date(y, m + 1, 0).getDate();
+  var todayIso = new Date().toISOString().slice(0,10);
+  var selectedIso = document.getElementById(DP.active).value;
+  var html = '<div class="dp-head">';
+  html += '<button type="button" class="dp-nav" onclick="dpPrev()">‹</button>';
+  html += '<span class="dp-title" onclick="dpSwitchMode(\'month\')">' + months[m] + ' ' + y + '</span>';
+  html += '<button type="button" class="dp-nav" onclick="dpNext()">›</button>';
+  html += '</div>';
+  html += '<div class="dp-grid">';
+  for (var i = 0; i < 7; i++) html += '<div class="dp-dow">' + dows[i] + '</div>';
+  for (var i = 0; i < first; i++) html += '<div class="dp-cell empty"></div>';
+  for (var d = 1; d <= daysInMonth; d++) {
+    var iso = dpToIso(y, m, d);
+    var has = DP.validDates.has(iso);
+    var cls = 'dp-cell ' + (has ? 'has-data' : 'no-data');
+    if (iso === selectedIso) cls += ' selected';
+    if (iso === todayIso) cls += ' today';
+    var onclick = has ? ('onclick="dpPick(\'' + iso + '\')"') : '';
+    html += '<div class="' + cls + '" ' + onclick + '>' + d + '</div>';
+  }
+  html += '</div>';
+  html += '<div class="dp-foot"><span>' + (dpLang()==='vi'?'Xanh = có dữ liệu':'Green = has data') + '</span><span>' + DP.validDates.size + ' ' + (dpLang()==='vi'?'ngày':'days') + '</span></div>';
+  return html;
+}
+
+function renderMonthGrid(){
+  var months = dpMonthNames();
+  var y = DP.viewYear;
+  var html = '<div class="dp-head">';
+  html += '<button type="button" class="dp-nav" onclick="DP.viewYear--; dpRender();">‹</button>';
+  html += '<span class="dp-title" onclick="dpSwitchMode(\'year\')">' + y + '</span>';
+  html += '<button type="button" class="dp-nav" onclick="DP.viewYear++; dpRender();">›</button>';
+  html += '</div>';
+  html += '<div class="dp-months">';
+  for (var i = 0; i < 12; i++) {
+    html += '<div class="dp-mon-cell" onclick="DP.viewMonth=' + i + '; dpSwitchMode(\'day\');">' + months[i] + '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderYearGrid(){
+  var y = DP.viewYear;
+  var startY = y - 4;
+  var html = '<div class="dp-head">';
+  html += '<button type="button" class="dp-nav" onclick="DP.viewYear-=9; dpRender();">‹</button>';
+  html += '<span class="dp-title">' + startY + ' - ' + (startY+8) + '</span>';
+  html += '<button type="button" class="dp-nav" onclick="DP.viewYear+=9; dpRender();">›</button>';
+  html += '</div>';
+  html += '<div class="dp-years">';
+  for (var i = 0; i < 9; i++) {
+    var yi = startY + i;
+    html += '<div class="dp-yr-cell" onclick="DP.viewYear=' + yi + '; dpSwitchMode(\'month\');">' + yi + '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function dpPrev(){
+  DP.viewMonth--;
+  if (DP.viewMonth < 0) { DP.viewMonth = 11; DP.viewYear--; }
+  dpRender();
+}
+function dpNext(){
+  DP.viewMonth++;
+  if (DP.viewMonth > 11) { DP.viewMonth = 0; DP.viewYear++; }
+  dpRender();
+}
+function dpSwitchMode(m){ DP.viewMode = m; dpRender(); }
+
+function dpPick(iso){
+  if (!DP.active) return;
+  document.getElementById(DP.active).value = iso;
+  document.getElementById(DP.active + 'Display').textContent = dpFormatDisplay(iso);
+  dpClose();
+}
+
+// Đóng popup khi click ngoài
+document.addEventListener('click', function(e){
+  if (!DP.active) return;
+  var wrap = document.querySelector('.dp-wrap[data-dp="' + DP.active + '"]');
+  if (wrap && !wrap.contains(e.target)) dpClose();
+});
+
+function openBackupSheetModal(){
+  document.getElementById('bsProgress').style.display = 'none';
+  document.getElementById('bsFill').style.width = '0%';
+  document.getElementById('bsSent').textContent = '0';
+  document.getElementById('backupSheetMsg').className = 'modal-msg';
+  document.getElementById('backupSheetModal').classList.add('show');
+  loadBackupStats();
+  // Load valid dates rồi set default range theo data thực có (min..max).
+  dpLoadDates(function(){
+    var fromIso, toIso;
+    if (DP.minDate && DP.maxDate) {
+      // Default = toàn bộ range có data (oldest → newest).
+      fromIso = DP.minDate;
+      toIso   = DP.maxDate;
+    } else {
+      // Chưa có data → fallback 30 ngày gần đây
+      var t = new Date();
+      toIso = t.toISOString().slice(0,10);
+      t.setDate(t.getDate() - 30);
+      fromIso = t.toISOString().slice(0,10);
+    }
+    document.getElementById('bsFromDate').value = fromIso;
+    document.getElementById('bsToDate').value   = toIso;
+    document.getElementById('bsFromDateDisplay').textContent = dpFormatDisplay(fromIso);
+    document.getElementById('bsToDateDisplay').textContent   = dpFormatDisplay(toIso);
+  });
+}
+function closeBackupSheetModal(){
+  document.getElementById('backupSheetModal').classList.remove('show');
+}
+function loadBackupStats(){
+  fetch('/api/logs/stats').then(function(r){return r.json();}).then(function(s){
+    var st = document.getElementById('bsStatus');
+    if (!s.ready){
+      st.textContent = 'W25Q128 not detected';
+      st.className = 'bs-v bad';
+      document.getElementById('bsValid').textContent = '—';
+      document.getElementById('bsPending').textContent = '—';
+      return;
+    }
+    st.textContent = 'OK';
+    st.className = 'bs-v ok';
+    document.getElementById('bsValid').textContent =
+      s.valid.toLocaleString() + ' / ' + s.capacity.toLocaleString();
+    document.getElementById('bsPending').textContent = s.pending.toLocaleString();
+  }).catch(function(){
+    var st = document.getElementById('bsStatus');
+    st.textContent = 'API error';
+    st.className = 'bs-v bad';
+  });
+}
+function submitBackupSheet(){
+  var from = document.getElementById('bsFromDate').value;
+  var to   = document.getElementById('bsToDate').value;
+  if (!from || !to){ showMsg('backupSheetMsg','Chọn ngày bắt đầu và kết thúc','err'); return; }
+  if (from > to)   { showMsg('backupSheetMsg','Ngày bắt đầu phải ≤ ngày kết thúc','err'); return; }
+  totpPrompt('Nhập mã 2FA để backup lên Sheet').then(function(totp){
+    if (totp === null) return;
+    _doBackupSheet(from, to, totp);
+  });
+}
+function _doBackupSheet(from, to, totp){
+  var btn = document.getElementById('bsRunBtn');
+  btn.disabled = true;
+  document.getElementById('bsProgress').style.display = 'block';
+  document.getElementById('bsSent').textContent = '0';
+  document.getElementById('bsFill').style.width = '0%';
+  document.getElementById('backupSheetMsg').className = 'modal-msg';
+
+  // Poll status mỗi 1s — flag pollActive chống race: response chính đến TRƯỚC
+  // khi poll callback resolve → polling khoá lại không ghi đè 100% sau cùng.
+  var pollActive = true;
+  var pollId = setInterval(function(){
+    if (!pollActive) return;
+    fetch('/api/logs/backup_status').then(function(r){return r.json();}).then(function(s){
+      if (!pollActive) return;
+      document.getElementById('bsSent').textContent = (s.sent||0).toLocaleString();
+      var cur = parseFloat(document.getElementById('bsFill').style.width) || 0;
+      document.getElementById('bsFill').style.width = Math.min(95, cur + 3) + '%';
+    }).catch(function(){});
+  }, 1000);
+
+  var url = '/api/logs/backup?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+  if (totp) url += '&totp=' + encodeURIComponent(totp);
+  // POST trả ngay {started:true} — backup chạy ở background task. Poll status
+  // để track progress thật (running, sent, anyError) tới khi running=false.
+  fetch(url, { method: 'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if (res.err) {
+        pollActive = false; clearInterval(pollId);
+        btn.disabled = false;
+        showMsg('backupSheetMsg','Lỗi: ' + res.err, 'err');
+        return;
+      }
+      // Started OK — poll continues. Detect done via status.running=false.
+      var donePoll = setInterval(function(){
+        fetch('/api/logs/backup_status').then(function(r){return r.json();}).then(function(s){
+          document.getElementById('bsSent').textContent = (s.sent||0).toLocaleString();
+          if (!s.running) {
+            clearInterval(donePoll);
+            pollActive = false; clearInterval(pollId);
+            btn.disabled = false;
+            document.getElementById('bsFill').style.width = '100%';
+            var anyErr = s.anyError || false;
+            if (!anyErr && s.sent > 0) {
+              showMsg('backupSheetMsg','Đã upload ' + s.sent + ' record từ ' + from + ' tới ' + to,'ok');
+              setTimeout(function(){ closeBackupSheetModal(); }, 2500);
+            } else if (s.sent === 0) {
+              showMsg('backupSheetMsg','Không có record nào trong khoảng ngày này','err');
+            } else {
+              showMsg('backupSheetMsg','Gửi được ' + s.sent + ' record — một số batch lỗi (SSL?)','err');
+            }
+            loadBackupStats();
+          }
+        }).catch(function(){});
+      }, 1500);
+    })
+    .catch(function(e){
+      pollActive = false; clearInterval(pollId);
+      btn.disabled = false;
+      showMsg('backupSheetMsg','Request failed: ' + (e.message||e),'err');
+    });
+}
 
 // Bilingual helper: tr(vi, en)
 function tr(viText, enText){
@@ -233,21 +808,28 @@ function submitPassChange(){
   if(!cur){ showMsg('passMsg', tr('Nhập mật khẩu hiện tại','Enter current password'),'err'); return; }
   if(!np){ showMsg('passMsg', tr('Nhập mật khẩu mới','Enter new password'),'err'); return; }
   if(np!==np2){ showMsg('passMsg', tr('Mật khẩu không khớp','Passwords do not match'),'err'); return; }
-  var x=new XMLHttpRequest();
-  x.open('POST','/update_account');
-  x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-  x.onload=function(){
-    if(x.status===200 && x.responseText==='OK'){
-      showMsg('passMsg', tr('Đã lưu! Đang đăng xuất...','Saved! Signing out...'),'ok');
-      setTimeout(function(){ window.location.href='/signout'; },1500);
-    } else if(x.responseText==='WRONG_PASS'){
-      showMsg('passMsg', tr('Mật khẩu hiện tại không đúng','Incorrect current password'),'err');
-    } else {
-      showMsg('passMsg', tr('Lỗi: ','Error: ')+x.responseText,'err');
-    }
-  };
-  x.onerror=function(){ showMsg('passMsg', tr('Lỗi kết nối','Connection error'),'err'); };
-  x.send('cur_pass='+encodeURIComponent(cur)+'&wwwpass='+encodeURIComponent(np));
+  totpPrompt('Nhập mã 2FA để đổi password').then(function(totp){
+    if (totp === null) return;
+    var x=new XMLHttpRequest();
+    x.open('POST','/update_account');
+    x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+    x.onload=function(){
+      if(x.status===200 && x.responseText==='OK'){
+        showMsg('passMsg', tr('Đã lưu! Đang đăng xuất...','Saved! Signing out...'),'ok');
+        setTimeout(function(){ window.location.href='/signout'; },1500);
+      } else if(x.responseText==='WRONG_PASS'){
+        showMsg('passMsg', tr('Mật khẩu hiện tại không đúng','Incorrect current password'),'err');
+      } else if(x.responseText==='WRONG_TOTP'){
+        showMsg('passMsg', tr('Mã 2FA sai','Wrong 2FA code'),'err');
+      } else {
+        showMsg('passMsg', tr('Lỗi: ','Error: ')+x.responseText,'err');
+      }
+    };
+    x.onerror=function(){ showMsg('passMsg', tr('Lỗi kết nối','Connection error'),'err'); };
+    var body = 'cur_pass='+encodeURIComponent(cur)+'&wwwpass='+encodeURIComponent(np);
+    if (totp) body += '&totp='+encodeURIComponent(totp);
+    x.send(body);
+  });
 }
 
 function doSignout(){
@@ -267,56 +849,643 @@ function doSignout(){
 }
 
 function doBackup(){
-  // Tạo anchor ẩn + download attribute → browser tải file, KHÔNG điều hướng page.
-  // Tránh ERR_CONNECTION_RESET do navigate sang URL trả binary.
-  // Chrome có thể chặn vì "Insecure download" (.db qua HTTP) — bấm "Keep" để allow.
-  var a=document.createElement('a');
-  a.href='/backup';
-  a.download='backup.db';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // fetch + blob để có thể gửi TOTP header. Anchor tag không hỗ trợ custom headers.
+  totpPrompt('Nhập mã 2FA để download backup.db').then(function(totp){
+    if (totp === null) return;
+    var h = {}; if (totp) h['X-TOTP'] = totp;
+    fetch('/backup', {headers: h}).then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.blob();
+    }).then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download='backup.db';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }).catch(function(e){
+      if (window.customAlert) customAlert({title:'Lỗi', msg:'Download FAILED: '+e.message, okColor:'#e74c3c'});
+    });
+  });
 }
 
-function doRestore(){
-  var inp=document.getElementById('restoreFile');
+// Full backup: DB + templates. Confirm trước vì slow (~2 phút cho 1500 templates).
+function doBackupFull(){
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var msg = lang==='vi'
+    ? 'Tải xuống DB + toàn bộ vân tay từ sensor.\n\n• File ~512KB cho mỗi 1000 vân tay\n• Thời gian: ~80ms × số vân tay (vd 100 vân = ~8s, 1500 vân = ~2 phút)\n• Sensor sẽ tạm dừng quét trong lúc tải\n\nTiếp tục?'
+    : 'Download DB + all sensor templates.\n\n• File size ~512KB per 1000 fingerprints\n• Time: ~80ms × N fingerprints (vd 100=8s, 1500=2min)\n• Sensor paused during download\n\nContinue?';
+  var go = function(){
+    totpPrompt('Nhập mã 2FA để download backup (gồm vân tay)').then(function(totp){
+      if (totp === null) return;
+      var ts = new Date().toISOString().slice(0,10);
+      var h = {}; if (totp) h['X-TOTP'] = totp;
+      fetch('/backup_full', {headers: h}).then(function(r){
+        if (!r.ok) throw new Error('HTTP '+r.status);
+        return r.blob();
+      }).then(function(blob){
+        var url = URL.createObjectURL(blob);
+        var a=document.createElement('a');
+        a.href=url; a.download='eetium_full_' + ts + '.eetiumbk';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      }).catch(function(e){
+        if (window.customAlert) customAlert({title:'Lỗi', msg:'Backup FAILED: '+e.message, okColor:'#e74c3c'});
+      });
+    });
+  };
+  if (window.customConfirm) {
+    customConfirm({
+      title: lang==='vi'?'Tải xuống DB + vân tay':'Download DB + Fingers',
+      msg: msg, okText: lang==='vi'?'Tải':'Download',
+      cancelText: lang==='vi'?'Hủy':'Cancel', okColor: '#198754', onOk: go
+    });
+  } else if (confirm(msg)) go();
+}
+
+// Full restore: upload .eetiumbk → server parse + restore DB + templates → restart
+function doRestoreFull(){
+  var inp=document.getElementById('restoreFullFile');
   if(!inp.files||!inp.files.length) return;
   var f=inp.files[0];
   var lang=(localStorage.getItem('eetium_lang')||'vi');
   var L={
-    title: lang==='vi'?'Xác nhận phục hồi':'Confirm restore',
+    title: lang==='vi'?'Phục hồi DB + vân tay':'Restore DB + Fingers',
     confirm: lang==='vi'
-      ? 'Phục hồi database từ "'+f.name+'"?\nThiết bị sẽ KHỞI ĐỘNG LẠI sau khi tải lên.'
-      : 'Restore database from "'+f.name+'"?\nDevice will RESTART after upload.',
+      ? ('GHI ĐÈ toàn bộ DB + vân tay sensor bằng "'+f.name+'"?\n• Mất hết user/vân tay hiện tại\n• Upload + restore ~2 phút\n• Thiết bị KHỞI ĐỘNG LẠI sau khi xong\n\nTiếp tục?')
+      : ('REPLACE entire DB + sensor templates with "'+f.name+'"?\n• Loses all current users/fingers\n• Upload + restore ~2 minutes\n• Device RESTARTS after\n\nContinue?'),
+    inProgress: lang==='vi'
+      ? 'Đang upload + restore. Có thể mất 2-3 phút. KHÔNG đóng trang.'
+      : 'Uploading + restoring. May take 2-3 minutes. DO NOT close.',
+    okRestart: lang==='vi'
+      ? 'Restore thành công. Thiết bị đang khởi động lại — chờ ~12s rồi làm mới trang.'
+      : 'Restore OK. Device restarting — wait ~12s then refresh.',
+    failed: lang==='vi' ? 'Phục hồi thất bại: ' : 'Restore failed: ',
+    restoreT: lang==='vi'?'Hoàn tất':'Done',
+    failT:    lang==='vi'?'Lỗi':'Error'
+  };
+  var go = function(){
+    totpPrompt('Nhập mã 2FA để restore (wipe DB + sensor)').then(function(totp){
+    if (totp === null) { inp.value=''; return; }
+    if (window.customAlert) customAlert({title: L.title, msg: L.inProgress, okColor:'#1a73e8'});
+    var fd=new FormData(); fd.append('file', f);
+    var x=new XMLHttpRequest();
+    x.open('POST','/restore_full');
+    if (totp) x.setRequestHeader('X-TOTP', totp);
+    x.timeout = 300000;   // 5 phút
+    x.onload=function(){
+      if(x.status===200){
+        try {
+          var r = JSON.parse(x.responseText);
+          var isMerge = r.mode === 'merge';
+          var headerMsg = isMerge
+            ? (lang==='vi' ? 'Restore (merge) thành công.' : 'Restore (merge) successful.')
+            : L.okRestart;
+          var detailLines = [];
+          if (isMerge) {
+            detailLines.push((lang==='vi'?'• Cập nhật user cũ: ':'• Updated: ') + (r.updated||0));
+            detailLines.push((lang==='vi'?'• Thêm user mới: ':'• Added: ') + (r.added||0));
+            detailLines.push((lang==='vi'?'• Vân tay thêm: ':'• Fingers added: ') + (r.fingers_added||0));
+          }
+          detailLines.push((lang==='vi'?'• Templates: ':'• Templates: ') + (r.templates_ok||0) +
+                           (lang==='vi'?' OK, ':' OK, ') + (r.templates_fail||0) +
+                           (lang==='vi'?' lỗi':' failed'));
+          var msg = headerMsg + '\n' + detailLines.join('\n');
+          if (window.customAlert) customAlert({title:L.restoreT, msg:msg, okColor:'#1a73e8'});
+          else alert(msg);
+          // Chỉ reload page nếu replace mode (restart) — merge không restart.
+          if (!isMerge) {
+            setTimeout(function(){ window.location.reload(); }, 15000);
+          }
+        } catch(e){
+          if (window.customAlert) customAlert({title:L.restoreT, msg:L.okRestart, okColor:'#1a73e8'});
+        }
+      } else {
+        if (window.customAlert) customAlert({title:L.failT, msg:L.failed+x.responseText, okColor:'#e74c3c'});
+        else alert(L.failed + x.responseText);
+      }
+      inp.value='';
+    };
+    x.onerror=function(){
+      if (window.customAlert) customAlert({title:L.failT, msg:'Upload error', okColor:'#e74c3c'});
+      inp.value='';
+    };
+    x.ontimeout=function(){
+      if (window.customAlert) customAlert({title:L.failT, msg:'Timeout — quá 5 phút', okColor:'#e74c3c'});
+      inp.value='';
+    };
+    x.send(fd);
+    });  // close totpPrompt callback
+  };
+  if (window.customConfirm) {
+    customConfirm({
+      title: L.title, msg: L.confirm,
+      okText: lang==='vi'?'Phục hồi':'Restore',
+      cancelText: lang==='vi'?'Hủy':'Cancel',
+      okColor: '#dc3545', onOk: go,
+      onCancel: function(){ inp.value=''; }
+    });
+  } else if (confirm(L.confirm)) go();
+  else inp.value='';
+}
+
+// === Auto Backup Cron ===
+function cronRefreshStatus(){
+  fetch('/api/cron/status').then(function(r){return r.json();}).then(function(j){
+    var el = document.getElementById('cronStatusText');
+    if (!el) return;
+    var lang = (localStorage.getItem('eetium_lang')||'vi');
+    if (j.enabled) {
+      var dowMap = lang==='vi'
+        ? {7:'Mỗi ngày',0:'Chủ nhật',1:'T2',2:'T3',3:'T4',4:'T5',5:'T6',6:'T7'}
+        : {7:'Daily',0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'};
+      var hh = String(j.hour).padStart(2,'0');
+      el.removeAttribute('data-i18n');
+      el.textContent = (lang==='vi'?'Bật — ':'On — ') + dowMap[j.dayOfWeek] + ' @ ' + hh + ':00 (' + j.daysBack + 'd)';
+    } else {
+      el.setAttribute('data-i18n','Cron disabled');
+      if (window.i18n) window.i18n.apply();
+      else el.textContent = (lang==='vi'?'Tắt':'Cron disabled');
+    }
+  }).catch(function(){});
+}
+function openCronModal(){
+  fetch('/api/cron/status').then(function(r){return r.json();}).then(function(j){
+    document.getElementById('cronEnabled').checked = !!j.enabled;
+    document.getElementById('cronDow').value = j.dayOfWeek;
+    document.getElementById('cronHour').value = j.hour;
+    document.getElementById('cronDays').value = j.daysBack;
+    var info = document.getElementById('cronLastRun');
+    var lang = (localStorage.getItem('eetium_lang')||'vi');
+    if (j.lastRunStr) {
+      info.textContent = (lang==='vi'?'Lần chạy gần nhất: ':'Last run: ') + j.lastRunStr;
+    } else {
+      info.textContent = (lang==='vi'?'Chưa từng chạy':'Never run');
+    }
+    document.getElementById('cronModal').classList.add('show');
+  });
+}
+function closeCronModal(){
+  document.getElementById('cronModal').classList.remove('show');
+}
+function cronSubmit(){
+  var en = document.getElementById('cronEnabled').checked ? '1' : '0';
+  var dow = document.getElementById('cronDow').value;
+  var hour = document.getElementById('cronHour').value;
+  var days = document.getElementById('cronDays').value;
+  totpPrompt('Nhập mã 2FA để lưu cấu hình cron').then(function(totp){
+    if (totp === null) return;
+    var body = 'enabled='+en+'&dayOfWeek='+dow+'&hour='+hour+'&daysBack='+days;
+    if (totp) body += '&totp='+encodeURIComponent(totp);
+    fetch('/api/cron/save',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: body
+    }).then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      closeCronModal();
+      cronRefreshStatus();
+    }).catch(function(e){
+      customAlert({title:'Lỗi',msg:'Save FAILED: '+e.message,okColor:'#e74c3c'});
+    });
+  });
+}
+cronRefreshStatus();
+
+// === Custom Prompt (thay window.prompt) ===
+var _promptResolver = null;
+function customPrompt(opts){
+  // opts: {title, msg, defaultValue, type, placeholder}
+  return new Promise(function(resolve){
+    document.getElementById('genericPromptTitle').textContent = opts.title || 'Input';
+    document.getElementById('genericPromptMsg').textContent = opts.msg || '';
+    var input = document.getElementById('genericPromptInput');
+    input.type = opts.type || 'text';
+    input.placeholder = opts.placeholder || '';
+    input.value = opts.defaultValue || '';
+    _promptResolver = resolve;
+    document.getElementById('genericPromptModal').classList.add('show');
+    setTimeout(function(){ input.focus(); input.select(); }, 100);
+    input.onkeydown = function(e){ if (e.key === 'Enter') _promptOk(); else if (e.key === 'Escape') _promptCancel(); };
+  });
+}
+function _promptOk(){
+  var v = document.getElementById('genericPromptInput').value;
+  document.getElementById('genericPromptModal').classList.remove('show');
+  if (_promptResolver) { _promptResolver(v); _promptResolver = null; }
+}
+function _promptCancel(){
+  document.getElementById('genericPromptModal').classList.remove('show');
+  if (_promptResolver) { _promptResolver(null); _promptResolver = null; }
+}
+
+// === TOTP 2FA ===
+function totpRefreshStatus(){
+  fetch('/totp_status').then(function(r){
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(j){
+    console.log('[TOTP status]', j);
+    var el=document.getElementById('totpStatusText');
+    if (!el) return;
+    var key = j.enabled ? "2FA enabled (required)" : "2FA not setup";
+    el.setAttribute('data-i18n', key);
+    if (window.i18n && window.i18n.apply) window.i18n.apply();
+    else el.textContent = key;
+  }).catch(function(e){
+    var el=document.getElementById('totpStatusText');
+    if (el) { el.removeAttribute('data-i18n'); el.textContent = '⚠ ' + e.message; }
+    console.error('[TOTP status]', e);
+  });
+}
+function totpSetup(){
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var warn = lang==='vi'
+    ? 'Setup 2FA: tạo secret mới (ghi đè nếu đã có). QR + recovery codes hiện 1 LẦN, phải lưu ngay.\n\nNếu 2FA đang BẬT, cần nhập mã hiện tại để ghi đè (chống takeover).\n\nTiếp tục?'
+    : 'Setup 2FA: new secret (overwrites existing). QR + recovery codes shown ONCE — save now.\n\nIf 2FA already ON, you must enter current code to overwrite.\n\nContinue?';
+  customConfirm({
+    title: lang==='vi'?'Cài đặt 2FA':'2FA Setup',
+    msg: warn,
+    okText: lang==='vi'?'Tiếp tục':'Continue',
+    cancelText: lang==='vi'?'Hủy':'Cancel',
+    okColor: '#198754',
+    onOk: function(){ _totpDoSetup(lang); }
+  });
+}
+function _totpDoSetup(lang){
+  totpPrompt(lang==='vi' ? 'Nhập mã 2FA HIỆN TẠI (bỏ qua nếu chưa setup)' : 'Enter CURRENT 2FA code (skip if first setup)').then(function(totp){
+    if (totp === null) return;
+    var body = totp ? ('totp='+encodeURIComponent(totp)) : '';
+    fetch('/totp_generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: body
+    }).then(function(r){
+      if (r.status === 401) throw new Error(lang==='vi' ? 'Cần mã 2FA hiện tại để ghi đè' : 'Need current TOTP to overwrite');
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(j){
+    // QR
+    document.getElementById('totpQrImg').src = '/totp_qr?data=' + encodeURIComponent(j.otpauth);
+    document.getElementById('totpSecretText').textContent = j.secret;
+    // Recovery codes: split + format 2 cột
+    var codes = j.recovery.split(',');
+    document.getElementById('totpRecoveryList').textContent = codes.join('\n');
+    document.getElementById('totpConfirmCode').value = '';
+    document.getElementById('totpSetupModal').classList.add('show');
+    setTimeout(function(){ document.getElementById('totpConfirmCode').focus(); }, 100);
+  }).catch(function(e){
+    customAlert({title: lang==='vi'?'Lỗi':'Error', msg:'TOTP setup FAILED: '+e.message, okColor:'#e74c3c'});
+  });
+  });   // close totpPrompt callback
+}
+function closeTotpSetup(){
+  document.getElementById('totpSetupModal').classList.remove('show');
+  // Server đã tạo secret rồi — refresh status để UI sync state hiện tại
+  // (đề phòng user đóng modal mà chưa confirm).
+  setTimeout(totpRefreshStatus, 200);
+}
+function totpConfirm(){
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var code = document.getElementById('totpConfirmCode').value.trim();
+  if (code.length !== 6) { customAlert({title:'!', msg:lang==='vi'?'Mã 6 số':'6-digit code', okColor:'#e74c3c'}); return; }
+  fetch('/totp_test',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: 'code='+encodeURIComponent(code)
+  }).then(function(r){return r.json();}).then(function(j){
+    if (j.ok) {
+      customAlert({
+        title: lang==='vi'?'Thành công':'Success',
+        msg: lang==='vi' ? '✓ Setup 2FA thành công! Từ giờ mọi sensitive op cần mã từ Authenticator.' : '✓ 2FA setup OK! All sensitive ops now need a code.',
+        okColor:'#1a73e8'
+      });
+      closeTotpSetup();
+      totpRefreshStatus();
+    } else {
+      customAlert({
+        title: lang==='vi'?'Lỗi':'Error',
+        msg: lang==='vi' ? '✗ Mã sai. Kiểm tra:\n• Đã scan QR vào Authenticator\n• Giờ máy bạn đúng (NTP)\n• Nhập mã hiện tại đang hiện' : '✗ Wrong code. Check QR scanned, time synced, current code entered.',
+        okColor:'#e74c3c'
+      });
+    }
+  });
+}
+function totpClearOp(){
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  customPrompt({
+    title: lang==='vi'?'Xoá 2FA':'Disable 2FA',
+    msg: lang==='vi'?'Nhập password admin để xác nhận:':'Enter admin password to confirm:',
+    type:'password',
+    placeholder: lang==='vi'?'Mật khẩu admin':'Admin password'
+  }).then(function(pass){
+    if (!pass) return;
+    totpPrompt(lang==='vi' ? 'Nhập mã 2FA hiện tại để xoá' : 'Enter current 2FA code to clear').then(function(totp){
+      if (totp === null) return;
+      var body = 'pass='+encodeURIComponent(pass);
+      if (totp) body += '&totp='+encodeURIComponent(totp);
+      fetch('/totp_clear',{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: body
+      }).then(function(r){
+        if (r.status === 401) {
+          return r.text().then(function(t){
+            customAlert({title:lang==='vi'?'Từ chối':'Rejected', msg:t, okColor:'#e74c3c'});
+          });
+        }
+        if (!r.ok) throw new Error('HTTP '+r.status);
+        customAlert({title:lang==='vi'?'OK':'OK', msg:lang==='vi'?'2FA đã tắt':'2FA disabled', okColor:'#1a73e8'});
+        totpRefreshStatus();
+      }).catch(function(e){
+        customAlert({title:lang==='vi'?'Lỗi':'Error', msg:'Clear FAILED: '+e.message, okColor:'#e74c3c'});
+      });
+    });
+  });
+}
+// Account.html load qua AJAX vào db.html shell → window 'load' event ĐÃ passed
+// → addEventListener('load',...) không trigger nữa. Gọi trực tiếp.
+totpRefreshStatus();
+
+// Helper: prompt TOTP code (modal). Returns Promise<string|null>.
+// Auto-resolve nếu TOTP chưa enable.
+function totpPrompt(msg){
+  return new Promise(function(resolve){
+    fetch('/totp_status').then(function(r){return r.json();}).then(function(j){
+      if (!j.enabled) { resolve(''); return; }
+      var modal = document.getElementById('totpInputModal');
+      var input = document.getElementById('totpInputCode');
+      var msgEl = document.getElementById('totpInputMsg');
+      if (msg) msgEl.textContent = msg;
+      input.value = '';
+      modal.classList.add('show');
+      setTimeout(function(){ input.focus(); }, 100);
+      window._totpResolver = resolve;
+    }).catch(function(){ resolve(''); });
+  });
+}
+function closeTotpInput(){
+  document.getElementById('totpInputModal').classList.remove('show');
+  if (window._totpResolver) { window._totpResolver(null); window._totpResolver = null; }
+}
+function totpInputSubmit(){
+  var code = document.getElementById('totpInputCode').value.trim().toUpperCase();
+  if (code.length !== 6 && code.length !== 8) {
+    customAlert({title:'!', msg:'Mã 6 số (TOTP) hoặc 8 ký tự (recovery)', okColor:'#e74c3c'});
+    return;
+  }
+  document.getElementById('totpInputModal').classList.remove('show');
+  if (window._totpResolver) { window._totpResolver(code); window._totpResolver = null; }
+}
+
+// === OTA token management ===
+function otaRefreshStatus(){
+  fetch('/ota_token_status').then(function(r){
+    if (!r.ok) throw new Error('status HTTP '+r.status);
+    return r.json();
+  }).then(function(j){
+    var el=document.getElementById('otaTokenStatus');
+    if (!el) return;
+    // QUAN TRỌNG: i18n.js có MutationObserver re-apply translation từ data-i18n
+    // → chỉ set textContent sẽ bị overwrite. Phải đổi cả attribute rồi gọi apply.
+    var key = j.exists ? "Token enabled (required for update)" : "No token (cookie auth only)";
+    el.setAttribute('data-i18n', key);
+    if (window.i18n && window.i18n.apply) window.i18n.apply();
+    else el.textContent = key;   // fallback nếu i18n chưa load
+  }).catch(function(e){
+    var el=document.getElementById('otaTokenStatus');
+    if (el) {
+      el.removeAttribute('data-i18n');   // tránh i18n ghi đè message lỗi
+      el.textContent = '⚠ ' + e.message;
+    }
+    console.error('[OTA status]', e);
+  });
+}
+function otaTokenGen(){
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var msg = lang==='vi'
+    ? 'Tạo OTA token mới?\n• Token chỉ hiện 1 LẦN — phải copy ngay\n• Mọi update firmware sau này CẦN token này\n• Token cũ (nếu có) bị thay thế'
+    : 'Generate new OTA token?\n• Token shown ONCE — copy immediately\n• All future FW updates require this token\n• Old token replaced';
+  customConfirm({
+    title: lang==='vi'?'Tạo OTA token':'Create OTA token',
+    msg: msg,
+    okText: lang==='vi'?'Tạo':'Create',
+    cancelText: lang==='vi'?'Hủy':'Cancel',
+    okColor:'#f39c12',
+    onOk: function(){ _otaTokenGenDo(lang); }
+  });
+}
+function _otaTokenGenDo(lang){
+  totpPrompt('Nhập mã 2FA để tạo OTA token').then(function(totp){
+  if (totp === null) return;
+  var body = totp ? ('totp='+encodeURIComponent(totp)) : '';
+  fetch('/ota_token_generate',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: body
+  }).then(function(r){
+    if (!r.ok) throw new Error('HTTP '+r.status+' — firmware có thể là bản cũ chưa support endpoint /ota_token_generate. Hãy nạp lại firmware.bin mới.');
+    return r.json();
+  }).then(function(j){
+    if (!j.token) throw new Error('Server trả về không có token');
+    localStorage.setItem('eetium_ota_token', j.token);
+    customPrompt({
+      title: lang==='vi' ? 'Token OTA mới' : 'New OTA token',
+      msg: lang==='vi' ? 'Đã lưu vào browser. Copy chuỗi dưới để dùng cho curl/CI (header X-OTA-Token):' : 'Saved in browser. Copy for curl/CI (header X-OTA-Token):',
+      defaultValue: j.token
+    });
+    setTimeout(otaRefreshStatus, 200);
+  }).catch(function(e){
+    customAlert({title:lang==='vi'?'Lỗi':'Error', msg:'Generate FAILED: '+e.message, okColor:'#e74c3c'});
+    console.error('[OTA gen]', e);
+  });
+  });  // close totpPrompt callback
+}
+function otaTokenDel(){
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  customConfirm({
+    title: lang==='vi'?'Xoá OTA token':'Clear OTA token',
+    msg: lang==='vi'?'Xoá OTA token? Trở về cookie auth.':'Clear OTA token? Revert to cookie auth.',
+    okText: lang==='vi'?'Xoá':'Clear',
+    cancelText: lang==='vi'?'Hủy':'Cancel',
+    okColor:'#95a5a6',
+    onOk: function(){ _otaTokenDelDo(lang); }
+  });
+}
+function _otaTokenDelDo(lang){
+  totpPrompt('Nhập mã 2FA để xoá OTA token').then(function(totp){
+    if (totp === null) return;
+    var body = totp ? ('totp='+encodeURIComponent(totp)) : '';
+    fetch('/ota_token_clear',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: body
+    }).then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      localStorage.removeItem('eetium_ota_token');
+      setTimeout(otaRefreshStatus, 200);
+    }).catch(function(e){
+      customAlert({title:lang==='vi'?'Lỗi':'Error', msg:'Clear FAILED: '+e.message, okColor:'#e74c3c'});
+    });
+  });
+}
+// OTA token row đã ẩn — skip refresh để tránh fetch endpoint không dùng tới.
+// otaRefreshStatus();
+
+function doFirmwareUpdate(){
+  var inp=document.getElementById('firmwareFile');
+  if(!inp.files||!inp.files.length) return;
+  var f=inp.files[0];
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var L={
+    title: lang==='vi'?'Cập nhật firmware':'Firmware update',
+    confirm: lang==='vi'
+      ? ('Nạp firmware "'+f.name+'" ('+Math.round(f.size/1024)+' KB)?\n• Upload qua WiFi ~20-40s\n• Thiết bị khởi động lại vào bản mới\n• Nếu sai → ESP32 sẽ tự rollback bản cũ\n\nTiếp tục?')
+      : ('Flash firmware "'+f.name+'" ('+Math.round(f.size/1024)+' KB)?\n• Upload over WiFi ~20-40s\n• Device restarts into new firmware\n• If invalid → auto-rollback to old\n\nContinue?'),
+    inProgress: lang==='vi' ? 'Đang upload firmware. KHÔNG đóng trang.' : 'Uploading firmware. DO NOT close.',
+    okRestart: lang==='vi'
+      ? 'Update OK. Thiết bị khởi động lại — chờ ~10s rồi làm mới.'
+      : 'Update OK. Device restarting — wait ~10s then refresh.',
+    failed: lang==='vi' ? 'Update thất bại: ' : 'Update failed: ',
+    okT: lang==='vi'?'Hoàn tất':'Done',
+    failT: lang==='vi'?'Lỗi':'Error',
+    badFile: lang==='vi'?'File phải là .bin firmware ESP32':'File must be .bin firmware'
+  };
+  if (!/\.bin$/i.test(f.name)) {
+    if (window.customAlert) customAlert({title:L.failT, msg:L.badFile, okColor:'#e74c3c'});
+    else alert(L.badFile);
+    inp.value=''; return;
+  }
+  var go = function(){
+    totpPrompt('Nhập mã 2FA để flash firmware').then(function(totp){
+    if (totp === null) { inp.value=''; return; }
+    var prog = document.getElementById('otaProgress');
+    var fd=new FormData(); fd.append('file', f);
+    var x=new XMLHttpRequest();
+    x.open('POST','/firmware_update');
+    // OTA token đã DEPRECATE — chỉ dùng TOTP làm second factor cho firmware push.
+    if (totp) x.setRequestHeader('X-TOTP', totp);
+    // Clean localStorage token cũ — không còn dùng nữa.
+    localStorage.removeItem('eetium_ota_token');
+    x.timeout = 180000;   // 3 phút
+    x.upload.onprogress = function(e){
+      if (e.lengthComputable) {
+        var pct = Math.round(100 * e.loaded / e.total);
+        prog.textContent = pct + '%';
+      }
+    };
+    x.onload=function(){
+      prog.textContent='';
+      if(x.status===200){
+        if (window.customAlert) customAlert({title:L.okT, msg:L.okRestart, okColor:'#1a73e8'});
+        else alert(L.okRestart);
+        setTimeout(function(){ window.location.reload(); }, 12000);
+      } else {
+        if (window.customAlert) customAlert({title:L.failT, msg:L.failed+x.responseText, okColor:'#e74c3c'});
+        else alert(L.failed + x.responseText);
+      }
+      inp.value='';
+    };
+    x.onerror=function(){
+      prog.textContent='';
+      if (window.customAlert) customAlert({title:L.failT, msg:'Upload error', okColor:'#e74c3c'});
+      inp.value='';
+    };
+    x.ontimeout=function(){
+      prog.textContent='';
+      if (window.customAlert) customAlert({title:L.failT, msg:'Timeout', okColor:'#e74c3c'});
+      inp.value='';
+    };
+    if (window.customAlert) customAlert({title:L.title, msg:L.inProgress, okColor:'#1a73e8'});
+    x.send(fd);
+    });   // close totpPrompt callback
+  };
+  if (window.customConfirm) {
+    customConfirm({
+      title: L.title, msg: L.confirm,
+      okText: lang==='vi'?'Cập nhật':'Update',
+      cancelText: lang==='vi'?'Hủy':'Cancel',
+      okColor: '#6f42c1', onOk: go,
+      onCancel: function(){ inp.value=''; }
+    });
+  } else if (confirm(L.confirm)) go();
+  else inp.value='';
+}
+
+// Set mode rồi mở file picker
+function pickRestore(mode){
+  var inp = document.getElementById('restoreFile');
+  inp.dataset.mode = mode;
+  inp.click();
+}
+
+function doRestore(mode){
+  if (!mode) mode = 'replace';
+  var inp=document.getElementById('restoreFile');
+  if(!inp.files||!inp.files.length) return;
+  var f=inp.files[0];
+  var lang=(localStorage.getItem('eetium_lang')||'vi');
+  var isMerge = (mode === 'merge');
+  var L={
+    title: lang==='vi'
+      ? (isMerge ? 'Gộp database' : 'Ghi đè database')
+      : (isMerge ? 'Merge database' : 'Replace database'),
+    confirm: lang==='vi'
+      ? (isMerge
+          ? ('Gộp users từ "'+f.name+'" vào DB hiện tại.\n• User trùng Mã NV: GIỮ NGUYÊN (không ghi đè)\n• User mới: ĐƯỢC THÊM (vân tay phải re-enroll)\n• Sensor tự dọn template thừa\n\nKHÔNG khởi động lại. Tiếp tục?')
+          : ('GHI ĐÈ toàn bộ DB hiện tại bằng "'+f.name+'"?\nMất hết user/vân tay hiện có.\nThiết bị sẽ KHỞI ĐỘNG LẠI sau khi tải lên.'))
+      : (isMerge
+          ? ('Merge users from "'+f.name+'" into current DB.\n• Duplicate Employee ID: KEPT (no overwrite)\n• New users: ADDED (fingerprints must re-enroll)\n• Sensor auto-cleans orphans\n\nNO restart. Continue?')
+          : ('REPLACE entire DB with "'+f.name+'"?\nAll current users/fingers will be lost.\nDevice will RESTART after upload.')),
     okRestart: lang==='vi'
       ? 'Phục hồi thành công. Thiết bị đang khởi động lại — chờ ~10 giây rồi làm mới trang.'
       : 'Restore OK. Device is restarting — wait ~10s then refresh.',
+    okMerge: lang==='vi' ? 'Đã gộp thành công.' : 'Merge successful.',
     failed: lang==='vi' ? 'Phục hồi thất bại: ' : 'Restore failed: ',
     uploadErr: lang==='vi' ? 'Lỗi tải lên' : 'Upload error',
     restoreT: lang==='vi'?'Hoàn tất':'Done',
     failT:    lang==='vi'?'Lỗi':'Error'
   };
   var doRestoreReq = function(){
+    // Replace = wipe DB → cần TOTP. Merge chỉ thêm → bypass.
+    var totpPromise = isMerge ? Promise.resolve('') : totpPrompt('Nhập mã 2FA để ghi đè DB');
+    totpPromise.then(function(totp){
+    if (totp === null) { inp.value=''; return; }
     var fd=new FormData();
     fd.append('file',f);
     var x=new XMLHttpRequest();
-    x.open('POST','/restore');
+    x.open('POST','/restore?mode=' + encodeURIComponent(mode));
+    if (totp) x.setRequestHeader('X-TOTP', totp);
     x.onload=function(){
-      if(x.status===200 && x.responseText==='OK_RESTART'){
-        if (window.customAlert) customAlert({title:L.restoreT, msg:L.okRestart, okColor:'#198754'});
+      if(x.status===200 && isMerge){
+        // Merge: response JSON {ok, added, orphans_cleaned}
+        var info = {};
+        try { info = JSON.parse(x.responseText); } catch(e){}
+        var msg = L.okMerge + '\n' +
+                  (lang==='vi' ? 'Đã thêm ' : 'Added ') + (info.added||0) +
+                  (lang==='vi' ? ' user mới\nĐã dọn ' : ' new users\nCleaned ') +
+                  (info.orphans_cleaned||0) + (lang==='vi' ? ' vân tay thừa' : ' orphan fingerprints');
+        if (window.customAlert) customAlert({title:L.restoreT, msg:msg, okColor:'#1a73e8'});
+        else alert(msg);
+        // Reload table sau merge
+        setTimeout(function(){ if (window.$ && $('#table').length) $('#table').load('/show'); }, 500);
+      } else if(x.status===200 && x.responseText==='OK_RESTART'){
+        if (window.customAlert) customAlert({title:L.restoreT, msg:L.okRestart, okColor:'#1a73e8'});
         else alert(L.okRestart);
+        // Thiết bị đang reboot — tự reload trang sau ~12s khi quay lại online
+        setTimeout(function(){ window.location.reload(); }, 12000);
       } else {
-        if (window.customAlert) customAlert({title:L.failT, msg:L.failed+x.responseText, okColor:'#dc3545'});
+        if (window.customAlert) customAlert({title:L.failT, msg:L.failed+x.responseText, okColor:'#e74c3c'});
         else alert(L.failed + x.responseText);
       }
       inp.value='';
     };
     x.onerror=function(){
-      if (window.customAlert) customAlert({title:L.failT, msg:L.uploadErr, okColor:'#dc3545'});
+      if (window.customAlert) customAlert({title:L.failT, msg:L.uploadErr, okColor:'#e74c3c'});
       else alert(L.uploadErr);
       inp.value='';
     };
     x.send(fd);
+    });  // close totpPromise.then
   };
   if (window.customConfirm) {
     customConfirm({
@@ -341,10 +1510,10 @@ function doSync(){
     checking: lang==='vi'?'Đang kiểm tra...':'Checking...',
     check:    lang==='vi'?'Kiểm tra':'Check',
     close:    lang==='vi'?'Đóng':'Close',
-    sensorTpl:lang==='vi'?'Mẫu trên sensor':'Sensor templates',
-    dbRec:    lang==='vi'?'Bản ghi DB (id 1-1500)':'Database records (id 1-1500)',
-    orphan:   lang==='vi'?'Template thừa (chỉ trên sensor)':'Orphan templates (sensor only)',
-    broken:   lang==='vi'?'Bản ghi bị lỗi (chỉ trên DB)':'Broken records (DB only)',
+    sensorTpl:lang==='vi'?'Vân tay trên sensor':'Sensor templates',
+    dbRec:    lang==='vi'?'Vân tay trong DB (user_fingers)':'DB fingerprints (user_fingers)',
+    orphan:   lang==='vi'?'Vân tay thừa (chỉ trên sensor)':'Orphan fingerprints (sensor only)',
+    broken:   lang==='vi'?'Vân tay bị lỗi (chỉ trên DB)':'Broken fingerprints (DB only)',
     status:   lang==='vi'?'Trạng thái':'Status',
     inSync:   lang==='vi'?'Đồng bộ':'In sync',
     outSync:  lang==='vi'?'Không đồng bộ':'Out of sync',

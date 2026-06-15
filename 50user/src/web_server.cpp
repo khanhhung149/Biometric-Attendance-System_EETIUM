@@ -212,7 +212,7 @@ static void insertRecord() {
     if (db_exec(test1_db, sql.c_str()) == SQLITE_OK) {
       web_content += "OK";
       Serial.println(web_content);
-      display_ShowMessage("Enroll Success!!");
+      display_ShowMessage("Đăng ký thành công!");
       delay(2000);
       display_ShowMainScreen(rtc_GetDateString(), rtc_GetTimeString(), wifi_IsConnected());
     }
@@ -752,6 +752,10 @@ static void getmdns() {
 static void getip() {
   server.send(200, "text/plain", ip_); // Yêu cầu biến ip_ từ wifi_manager
 }
+static void getGsid() {
+  // Trả về Google Script ID đang lưu — Settings.html dùng để hiện URL hiện tại.
+  server.send(200, "text/plain", gsid_);
+}
 static void getfpid() {
 
 
@@ -1001,6 +1005,7 @@ void webServer_Init() {
   server.on("/getfpid", getfpid);
   server.on("/getmdns", getmdns);
   server.on("/getip", getip);
+  server.on("/getgsid", getGsid);   // Settings.html hiện URL Google Script hiện tại
   server.on("/signout", logout);
   server.on("/scan", handleScan);
   server.on("/wifi_status", wifiStatus);  // poll trạng thái connect WiFi cho ApSetup

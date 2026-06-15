@@ -48,36 +48,7 @@
  
 	</script>
 
-	<script>
-	// Inline i18n cho Login page — không phụ thuộc external resource
-	(function(){
-	  var T={
-	    "Biometric Database Server":{vi:"Máy chủ Vân tay EETIUM",en:"Biometric Database Server"},
-	    "Login":{vi:"Đăng nhập",en:"Login"},
-	    "Username":{vi:"Tên đăng nhập",en:"Username"},
-	    "Password":{vi:"Mật khẩu",en:"Password"}
-	  };
-	  function getLang(){return localStorage.getItem('eetium_lang')||'vi';}
-	  function apply(){
-	    var lang=getLang();
-	    document.querySelectorAll('button,label,h1,h2,h3,h4,h5,.brand-title,.form-label,.card-title,a').forEach(function(el){
-	      if(el.children.length>0) return;
-	      var key=el.getAttribute('data-i18n-key');
-	      if(!key){var t=(el.textContent||'').trim();if(T[t]){key=t;el.setAttribute('data-i18n-key',key);}}
-	      if(key&&T[key]&&T[key][lang]!==undefined) el.textContent=T[key][lang];
-	    });
-	    document.querySelectorAll('input[placeholder]').forEach(function(el){
-	      var key=el.getAttribute('data-i18n-ph-key');
-	      if(!key){var t=(el.getAttribute('placeholder')||'').trim();if(T[t]){key=t;el.setAttribute('data-i18n-ph-key',key);}}
-	      if(key&&T[key]&&T[key][lang]!==undefined) el.setAttribute('placeholder',T[key][lang]);
-	    });
-	  }
-	  function init(){apply();}
-	  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
-	  else init();
-	  window.i18n={apply:apply,getLang:getLang,setLang:function(l){localStorage.setItem('eetium_lang',l);location.reload();}};
-	})();
-	</script>
+	<script src="/i18n.js"></script>
 <body>
     <!-- Start: Login form (responsive, matches Settings) -->
     <style>

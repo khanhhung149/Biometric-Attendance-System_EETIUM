@@ -305,6 +305,8 @@ function doRestore(){
       if(x.status===200 && x.responseText==='OK_RESTART'){
         if (window.customAlert) customAlert({title:L.restoreT, msg:L.okRestart, okColor:'#198754'});
         else alert(L.okRestart);
+        // Thiết bị đang reboot — tự reload trang sau ~12s khi quay lại online
+        setTimeout(function(){ window.location.reload(); }, 12000);
       } else {
         if (window.customAlert) customAlert({title:L.failT, msg:L.failed+x.responseText, okColor:'#dc3545'});
         else alert(L.failed + x.responseText);

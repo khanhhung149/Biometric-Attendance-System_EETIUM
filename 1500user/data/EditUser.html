@@ -49,21 +49,29 @@
       <input id="ep-pos" type="text" required>
     </div>
     <div class="grp">
-      <label data-i18n="Finger Print ID">Finger Print ID</label>
-      <input id="ep-fpid" type="text" disabled>
+      <label>
+        <span data-i18n="Fingerprints">Vân tay đã đăng ký</span>
+        <span id="ep-fingers-count" style="color:#6b7280; font-weight:400; font-size:12px; margin-left:6px;">(—)</span>
+      </label>
+      <div id="ep-fingers-list" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
+      <button type="button" id="ep-add-finger-btn" onclick="addFingerFromPage()"
+              style="margin-top:10px; padding:8px 14px; border-radius:6px; border:1px solid #1a73e8; background:#fff; color:#1a73e8; font-size:13px; font-weight:500; cursor:pointer;">
+        + <span data-i18n="Add fingerprint">Thêm vân tay</span>
+      </button>
     </div>
   </div>
   <div class="edit-page-foot">
     <button class="ep-cancel" onclick="cancelEdit()" data-i18n="Cancel">Cancel</button>
-    <button class="ep-retake" onclick="retakeFromPage()" data-i18n="Retake sample">Retake sample</button>
     <button class="ep-save" onclick="savePage()" data-i18n="Save">Save</button>
   </div>
 </div>
 <script>
+// eid được LOAD lúc đầu — dùng cho add/remove finger để không bị ảnh hưởng
+// khi user gõ đổi eid trong form (rename chỉ có hiệu lực sau khi Save).
+window._epLoadedEid = '';
 (function(){
   var id = window._editUserId;
   if (!id) { Database(); return; }
-  // Fetch user data
   $.get('/get_user?id=' + id, function(d){
     var u = (typeof d === 'string') ? JSON.parse(d) : d;
     $('#ep-id').val(u.id || '');
@@ -71,7 +79,8 @@
     $('#ep-name').val(u.employee_name || '');
     $('#ep-email').val(u.employee_email || '');
     $('#ep-pos').val(u.position || '');
-    $('#ep-fpid').val(u.fpid || '');
+    window._epLoadedEid = u.eid || '';
+    loadFingers();
   }).fail(function(){
     showEPMsg(tr('Không tải được dữ liệu user','Failed to load user'),'err');
   });
@@ -82,6 +91,151 @@ function showEPMsg(txt, type){
   m.textContent = txt; m.className = 'edit-page-msg show ' + type;
 }
 function cancelEdit(){ Database(); }
+
+// ===== Quản lý vân tay (tối đa 5/user) =====
+function loadFingers(){
+  var eid = window._epLoadedEid;
+  if (!eid) return;
+  $.get('/list_fingers?eid=' + encodeURIComponent(eid), function(list){
+    if (typeof list === 'string') list = JSON.parse(list);
+    renderFingers(list || []);
+  }).fail(function(){
+    $('#ep-fingers-list').html('<div style="color:#dc2626; font-size:13px;">' +
+      tr('Lỗi tải danh sách vân tay','Failed to load fingers') + '</div>');
+  });
+}
+function renderFingers(list){
+  var $list = $('#ep-fingers-list').empty();
+  $('#ep-fingers-count').text('(' + list.length + '/5)');
+  if (list.length === 0) {
+    $list.html('<div style="color:#9ca3af; font-size:13px; font-style:italic;">' +
+      tr('Chưa có vân tay nào','No fingerprints yet') + '</div>');
+  } else {
+    // Render label theo VỊ TRÍ (idx+1), KHÔNG dùng f.label đã lưu trong DB
+    // → tự động dịch EN/VI và không bị giữ "Vân X" hardcoded từ enroll trước.
+    list.forEach(function(f, idx){
+      var displayName = tr('Vân tay ', 'Finger ') + (idx + 1);
+      var $row = $('<div class="ep-finger-row" style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px;"></div>');
+      $row.append('<span style="flex:1; font-size:13px;"><b>' + displayName + '</b> <span style="color:#6b7280;">(ID ' + f.fpid + ')</span></span>');
+      // Nút Lấy lại — re-enroll vân tay này (giữ nguyên fpid, refresh template)
+      var $btnRetake = $('<button type="button" style="padding:7px 14px; border-radius:6px; border:none; background:#f59e0b; color:#fff; font-size:12px; font-weight:600; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.08);">' +
+        tr('Lấy lại','Retake') + '</button>');
+      $btnRetake.on('click', function(){ retakeFingerRow(f.fpid, displayName); });
+      $btnRetake.hover(
+        function(){ $(this).css('background','#d97706'); },
+        function(){ $(this).css('background','#f59e0b'); }
+      );
+      $row.append($btnRetake);
+      // Nút Xóa
+      var $btnDel = $('<button type="button" style="padding:7px 14px; border-radius:6px; border:none; background:#dc2626; color:#fff; font-size:12px; font-weight:600; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.08);">' +
+        tr('Xóa','Delete') + '</button>');
+      $btnDel.on('click', function(){ removeFingerRow(f.fpid, displayName); });
+      $btnDel.hover(
+        function(){ $(this).css('background','#b91c1c'); },
+        function(){ $(this).css('background','#dc2626'); }
+      );
+      $row.append($btnDel);
+      $list.append($row);
+    });
+  }
+  // Disable nút Thêm nếu đã đủ 5
+  var $addBtn = $('#ep-add-finger-btn');
+  if (list.length >= 5) {
+    $addBtn.prop('disabled', true).css({opacity:.5, cursor:'not-allowed'});
+  } else {
+    $addBtn.prop('disabled', false).css({opacity:1, cursor:'pointer'});
+  }
+}
+function addFingerFromPage(){
+  var eid = window._epLoadedEid;
+  if (!eid) { showEPMsg(tr('Chưa xác định được mã NV','Missing employee ID'),'err'); return; }
+  customConfirm({
+    title: tr('Thêm vân tay','Add fingerprint'),
+    msg: tr('Đặt ngón tay MỚI lên cảm biến và làm theo hướng dẫn trên OLED:\n- Đặt ngón tay 6 lần\n- Nhấc khi sensor báo\n\nMất ~30 giây.',
+            'Place a NEW finger on the sensor and follow OLED:\n- Place finger 6 times\n- Lift when sensor beeps\n\n~30 seconds.'),
+    okText: tr('Bắt đầu','Start'),
+    cancelText: tr('Hủy','Cancel'),
+    onOk: function(){
+      totpPrompt('Nhập mã 2FA để thêm vân tay').then(function(totp){
+        if (totp === null) return;
+        var d = { eid: eid };
+        if (totp) d.totp = totp;
+        showEPMsg(tr('Đang lấy mẫu... xem OLED (30s)','Sampling... watch OLED (30s)'),'ok');
+        $.ajax({
+          url: '/add_finger', method: 'POST', data: d, timeout: 60000,
+          success: function(res){
+            var r = (typeof res === 'string') ? JSON.parse(res) : res;
+            showEPMsg(tr('Đã thêm vân tay (ID ' + r.fpid + ')','Added fingerprint (ID ' + r.fpid + ')'),'ok');
+            loadFingers();
+          },
+          error: function(xhr){
+            var msg = xhr.responseText || xhr.statusText;
+            if (msg === 'MAX_FINGERS') msg = tr('Đã đủ 5 vân tay','Already 5 fingers');
+            else if (msg === 'SENSOR_FULL') msg = tr('Cảm biến đầy (1500 templates)','Sensor full');
+            else if (msg === 'ENROLL_FAILED') msg = tr('Lấy mẫu thất bại — quét lại','Enroll failed — retry');
+            showEPMsg((tr('Thất bại: ','Failed: ')) + msg,'err');
+          }
+        });
+      });
+    }
+  });
+}
+function retakeFingerRow(fpid, label){
+  customConfirm({
+    title: tr('Lấy lại mẫu vân tay','Retake fingerprint sample'),
+    msg: tr('Lấy lại mẫu cho ' + label + ' (ID ' + fpid + ')?\n\nMẫu cũ sẽ bị xóa, đặt lại đúng ngón đó theo OLED:\n- Đặt ngón tay 6 lần\n- Nhấc khi sensor báo\n\nMất ~30 giây.',
+            'Retake sample for ' + label + ' (ID ' + fpid + ')?\n\nOld sample will be replaced. Place the SAME finger and follow OLED:\n- Place finger 6 times\n- Lift when sensor beeps\n\n~30 seconds.'),
+    okText: tr('Lấy mẫu','Take'),
+    cancelText: tr('Hủy','Cancel'),
+    okColor: '#f39c12',
+    onOk: function(){
+      totpPrompt('Nhập mã 2FA để re-enroll vân tay').then(function(totp){
+        if (totp === null) return;
+        showEPMsg(tr('Đang lấy mẫu... xem OLED (30s)','Sampling... watch OLED (30s)'),'ok');
+        var data = { fpid: fpid };
+        if (totp) data.totp = totp;
+        $.ajax({
+          url: '/reenroll', method: 'GET', data: data, timeout: 60000,
+          success: function(){
+            showEPMsg(tr('Đã lấy lại mẫu cho ' + label,'Sample taken for ' + label),'ok');
+          },
+          error: function(xhr){
+            showEPMsg((tr('Thất bại: ','Failed: ')) + (xhr.responseText||xhr.statusText),'err');
+          }
+        });
+      });
+    }
+  });
+}
+function removeFingerRow(fpid, label){
+  customConfirm({
+    title: tr('Xóa vân tay','Delete fingerprint'),
+    msg: tr('Xóa ' + label + ' (ID ' + fpid + ')?\nKhông thể hoàn tác.',
+            'Delete ' + label + ' (ID ' + fpid + ')?\nCannot undo.'),
+    okText: tr('Xóa','Delete'),
+    cancelText: tr('Hủy','Cancel'),
+    okColor: '#e74c3c',
+    onOk: function(){
+      totpPrompt('Nhập mã 2FA để xoá vân tay').then(function(totp){
+        if (totp === null) return;
+        var data = { fpid: fpid };
+        if (totp) data.totp = totp;
+        $.ajax({
+          url: '/remove_finger', method: 'POST', data: data, timeout: 10000,
+          success: function(){
+            showEPMsg(tr('Đã xóa vân tay','Deleted'),'ok');
+            loadFingers();
+          },
+          error: function(xhr){
+            var msg = xhr.responseText || xhr.statusText;
+            if (msg === 'LAST_FINGER') msg = tr('Đây là vân tay cuối — dùng "Xóa user" thay vì xóa vân tay','Last finger — use "Delete user" instead');
+            showEPMsg((tr('Thất bại: ','Failed: ')) + msg,'err');
+          }
+        });
+      });
+    }
+  });
+}
 function savePage(){
   // Validate required fields
   var eid = $('#ep-eid').val().trim();
@@ -90,12 +244,13 @@ function savePage(){
   if (!eid) { showEPMsg(tr('Mã NV không được trống','Employee ID is required'),'err'); $('#ep-eid').focus(); return; }
   if (!name) { showEPMsg(tr('Họ tên không được trống','Full Name is required'),'err'); $('#ep-name').focus(); return; }
   if (!pos) { showEPMsg(tr('Chức vụ không được trống','Designations is required'),'err'); $('#ep-pos').focus(); return; }
+  totpPrompt('Nhập mã 2FA để lưu thay đổi user').then(function(totp){
+  if (totp === null) return;
+  var d = { id: $('#ep-id').val(), eid: eid, name: name, email: $('#ep-email').val(), pos: pos };
+  if (totp) d.totp = totp;
   $.ajax({
     url: '/update_user', method: 'POST',
-    data: {
-      id: $('#ep-id').val(), eid: eid, name: name,
-      email: $('#ep-email').val(), pos: pos
-    },
+    data: d,
     success: function(res){
       if (res === 'OK') {
         showEPMsg(tr('Đã lưu','Saved'),'ok');
@@ -113,25 +268,6 @@ function savePage(){
       }
     }
   });
-}
-function retakeFromPage(){
-  var fpid = $('#ep-fpid').val();
-  if (!fpid) return;
-  customConfirm({
-    title: tr('Lấy lại mẫu vân tay','Retake fingerprint sample'),
-    msg: tr('Lấy lại mẫu cho ID ' + fpid + '?\n\nLàm theo OLED:\n- Đặt ngón tay 6 lần\n- Nhấc khi sensor báo\n\nMất ~30 giây.',
-            'Retake sample for ID ' + fpid + '?\n\nFollow OLED:\n- Place finger 6 times\n- Lift when sensor beeps\n\n~30 seconds.'),
-    okText: tr('Lấy mẫu','Take'),
-    cancelText: tr('Hủy','Cancel'),
-    okColor: '#f7c948',
-    onOk: function(){
-      showEPMsg(tr('Đang lấy mẫu... xem OLED','Sampling... watch OLED'),'ok');
-      $.ajax({
-        url: '/reenroll', method: 'GET', data: { fpid: fpid }, timeout: 60000,
-        success: function(){ showEPMsg(tr('Lấy mẫu thành công!','Sample taken!'),'ok'); },
-        error: function(xhr){ showEPMsg((tr('Thất bại: ','Failed: ')) + (xhr.responseText||xhr.statusText),'err'); }
-      });
-    }
-  });
+  });  // close totpPrompt callback
 }
 </script>

@@ -4,6 +4,7 @@
 #include "display.h"
 #include "storage.h"   // test1_db handle để close trước khi xóa DB
 #include "fingerprint.h"  // fingerprint_DeleteAll() cho mốc Clear DB
+#include "i18n_text.h"    // TR(vi, en) macro
 
 // beepBuzzer định nghĩa trong fingerprint.cpp, không có declaration trong header.
 extern void beepBuzzer(int beeps, int durationMs);
@@ -29,14 +30,14 @@ static void removeIfExists(const char *p) {
 
 static void doNetworkReset() {
   Serial.println("[Reset] === NETWORK RESET (keep DB) ===");
-  display_ShowMessage("Resetting\nNetwork...");
+  display_ShowMessage(TR("Đặt lại\nmạng...", "Resetting\nnetwork..."));
   removeIfExists("/ssid.txt");
   removeIfExists("/pass.txt");
   removeIfExists("/ip.txt");
   removeIfExists("/gateway.txt");
   removeIfExists("/dhcpcheck.txt");
   beepBuzzer(2, 120);
-  display_ShowMessage("Network\nReset OK\nRestarting");
+  display_ShowMessage(TR("Đã reset mạng\nKhởi động lại", "Network reset\nRestarting"));
   delay(1500);
   ESP.restart();
 }
@@ -46,7 +47,7 @@ static void doFactoryReset() {
   // Xóa: SQLite DB, template trong R502F flash, WiFi config.
   // Giữ: web assets (index.html/css/js) — không cần uploadfs lại.
   Serial.println("[Reset] === CLEAR DB + RESET NETWORK ===");
-  display_ShowMessage("Clearing DB\n& WiFi...");
+  display_ShowMessage(TR("Đang xóa DB\n& WiFi...", "Clearing DB\n& WiFi..."));
   if (test1_db) {
     sqlite3_close(test1_db);
     test1_db = nullptr;
@@ -61,7 +62,7 @@ static void doFactoryReset() {
   removeIfExists("/gateway.txt");
   removeIfExists("/dhcpcheck.txt");
   beepBuzzer(3, 150);
-  display_ShowMessage("All Cleared\nRestarting");
+  display_ShowMessage(TR("Đã xóa hết\nKhởi động lại", "All cleared\nRestarting"));
   delay(1500);
   ESP.restart();
 }
@@ -92,7 +93,8 @@ void resetButton_Task() {
     pressStart_ = now;
     reachedStage_ = 0;
     lastShownSec_ = 0;
-    display_ShowMessage("Hold: 0s\n5s: Reset Net\n30s: Clear DB");
+    display_ShowMessage(TR("Giữ: 0s\n5s: Reset mạng\n30s: Xóa DB",
+                            "Hold: 0s\n5s: Reset WiFi\n30s: Clear DB"));
     return;
   }
 
@@ -133,13 +135,16 @@ void resetButton_Task() {
       String msg;
       if (reachedStage_ >= 2) {
         // >=30s: thả ra sẽ wipe DB
-        msg = "Hold: " + String(sec) + "s\nRelease for\nCLEAR ALL DB";
+        msg = TR("Giữ: ", "Hold: ") + String(sec) +
+              TR("s\nThả để\nXÓA TẤT CẢ", "s\nRelease to\nCLEAR ALL");
       } else if (reachedStage_ >= 1) {
         // 5s ≤ held < 30s: thả ra sẽ reset network, tiếp tục đếm tới 30
-        msg = "Hold: " + String(sec) + "s\n>>Reset Net<<\n30s: Clear DB";
+        msg = TR("Giữ: ", "Hold: ") + String(sec) +
+              TR("s\n>>Reset mạng<<\n30s: Xóa DB", "s\n>>Reset WiFi<<\n30s: Clear DB");
       } else {
         // 0 ≤ held < 5s: hướng dẫn cả 2 mốc
-        msg = "Hold: " + String(sec) + "s\n5s: Reset Net\n30s: Clear DB";
+        msg = TR("Giữ: ", "Hold: ") + String(sec) +
+              TR("s\n5s: Reset mạng\n30s: Xóa DB", "s\n5s: Reset WiFi\n30s: Clear DB");
       }
       display_ShowMessage(msg);
     }
