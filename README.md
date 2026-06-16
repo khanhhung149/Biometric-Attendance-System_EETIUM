@@ -5,7 +5,6 @@ Hệ thống chấm công vân tay chạy trên ESP32, đồng bộ dữ liệu 
 ## Tóm tắt nhanh
 
 - Firmware chính nằm ở [`1500user/`](./1500user) cho cảm biến Grow R502F-Pro 1500 template.
-- Bản còn lại ở [`50user/`](./50user) giữ cấu trúc tương tự cho cảm biến FPM383C 50 template.
 - Dữ liệu cục bộ dùng LittleFS + SQLite, còn dữ liệu chấm công đẩy lên Google Sheet qua Apps Script.
 - Hệ thống có AP setup lần đầu, mDNS `biometric.local`, watchdog, auto-reconnect WiFi và backlog offline trên flash.
 - Mỗi user có thể gắn 1 đến 5 vân tay; ID cảm biến được cấp phát và thu hồi tự động để tránh phân mảnh.
@@ -25,7 +24,6 @@ Hệ thống chấm công vân tay chạy trên ESP32, đồng bộ dữ liệu 
 ```text
 Biometric-Attendance-System_EETIUM/
 ├── 1500user/        # Firmware ESP32 cho R502F-Pro, bản dùng thực tế hiện tại
-├── 50user/          # Firmware tương tự cho FPM383C
 ├── gas/             # Google Apps Script backend
 └── README.md
 ```
@@ -150,4 +148,4 @@ Repo hiện đã được khởi tạo và đẩy lên GitHub tại `https://git
 
 ## Ghi chú
 
-README này được viết lại theo trạng thái code hiện tại của hệ thống: có offline backlog, SQLite schema cho multi-finger, TOTP bảo vệ tác vụ nhạy cảm, OTA update, health/storage API và hai firmware variant 50user/1500user.
+README này được viết lại theo trạng thái code hiện tại của hệ thống: có offline backlog, SQLite schema cho multi-finger, TOTP bảo vệ tác vụ nhạy cảm, OTA update, health/storage API và firmware 1500user.
