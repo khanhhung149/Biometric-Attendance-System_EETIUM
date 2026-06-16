@@ -11,6 +11,7 @@
 
 # Runtime data (auto-created by sqlite CREATE TABLE IF NOT EXISTS)
 **/data/test1.db
+**/.embedder/
 
 # OS
 .DS_Store
