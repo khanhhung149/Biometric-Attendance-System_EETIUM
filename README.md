@@ -40,7 +40,41 @@ Trong mỗi firmware:
 
 ## Phần cứng tham chiếu
 
-Thiết kế hiện tại đang dùng board ESP32 DOIT DevKit V1, OLED SPI 128x64, cảm biến vân tay, RTC DS1307, buzzer và nút reset. Chân kết nối cụ thể phụ thuộc vào board và module đang lắp, nhưng project hiện đang map theo cấu hình trong code của từng firmware variant.
+Thiết kế hiện tại dùng board ESP32 DOIT DevKit V1 và các ngoại vi sau:
+
+### Danh sách ngoại vi
+
+- Reset button: GPIO4 - GND
+- SSD1309:
+   - GPIO18 - SCK
+   - GPIO23 - MOSI
+   - GPIO5 - CS
+   - GPIO26 - DC
+   - GPIO27 - RESET
+   - VCC - 3.3V
+   - GND - GND
+- QR button: GPIO13 - GND
+- R502F:
+   - RX - GPIO TX2
+   - TX - GPIO RX2
+   - VCC - 3.3V
+   - GND - GND
+- RTC:
+   - GPIO21 - SDA
+   - GPIO22 - SCL
+   - VCC - 3.3V
+   - GND - GND
+- W25Q128:
+   - GPIO14 - CS
+   - GPIO19 - DI
+   - GPIO32 - CLK
+   - GPIO34 - DO
+   - VCC - 3.3V
+   - GND - GND
+   - WP và HOLD - 3.3V
+- Buzzer: GPIO25
+
+W25Q128 được dùng cho flash log / history ring buffer trên SPI flash rời.
 
 ## Cách chạy
 
@@ -112,55 +146,8 @@ Một số route chính đã được đăng ký trong web server:
 
 ## Trạng thái git
 
-Thư mục hiện tại chưa được khởi tạo như một git repository độc lập, nên chưa thể push trực tiếp nếu chưa tạo repo hoặc chưa gắn remote. Khi đã có remote, các bước thông thường là:
-
-```bash
-git init
-git remote add origin https://github.com/khanhhung149/Biometric-Attendance-System_EETIUM.git
-git add README.md
-git commit -m "Update README"
-git push -u origin main
-```
+Repo hiện đã được khởi tạo và đẩy lên GitHub tại `https://github.com/khanhhung149/Biometric-Attendance-System_EETIUM`.
 
 ## Ghi chú
 
 README này được viết lại theo trạng thái code hiện tại của hệ thống: có offline backlog, SQLite schema cho multi-finger, TOTP bảo vệ tác vụ nhạy cảm, OTA update, health/storage API và hai firmware variant 50user/1500user.
-| POST | `/save` | Lưu Settings (WiFi/GSID/IP/TZ) → reboot |
-| GET | `/signout` | Logout |
-
-## Troubleshooting
-
-### Quét vân tay không nhận
-
-1. Vào `Tài khoản → Kiểm tra đồng bộ`:
-   - **Vân tay trong DB > Vân tay trên sensor** → template trên sensor đã mất
-     → vào Edit user → bấm **Lấy lại** cho từng vân tay thiếu
-   - **Vân tay thừa** (chỉ sensor) → mồ côi → có thể bỏ qua, hoặc giữ nút
-     reset 30s để wipe sensor (xong phải re-enroll)
-2. User có 5 vân tay → thử ngón khác
-
-### Records không lên Sheet
-
-1. Vào `/storage` → kiểm tra `backlogLines`:
-   - = 0 → đã đồng bộ hết
-   - \> 0 → đang tích lũy, đợi mạng/quyền phục hồi
-2. Check Serial monitor:
-   - `WiFi down` → router/mạng có vấn đề
-   - `gsid empty` → cần vào Settings nhập lại URL
-   - `HTTP Error: 401/403` → Apps Script chưa public "Anyone access"
-   - `HTTP Error: 404` → URL Google Script sai
-
-### OLED hiện "Bộ nhớ đầy / Chờ kết nối"
-
-- LittleFS gần đầy, backlog không drain được
-- Bật WiFi + đảm bảo GAS chạy → backlog tự drain → quét lại OK
-
-### Sensor không init được
-
-- Check đấu dây UART2 (RX 16, TX 17) + TOUCH 15
-- Cấp đủ 3.3V, dòng đủ (R502F-Pro tới 100 mA peak khi capture)
-- Reboot ESP32
-
-## License
-
-Internal project — EETIUM Technology JSC.
