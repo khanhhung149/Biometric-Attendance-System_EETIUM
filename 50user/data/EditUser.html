@@ -1,0 +1,217 @@
+<!-- Edit User page — loaded via AJAX into #table div của db.html.
+     Đọc id từ window._editUserId (set bởi edit() function trong db.html).
+     KHÔNG độc lập — chỉ hoạt động khi load qua dashboard. -->
+<style>
+  .edit-page-wrap { max-width: 720px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.08); overflow: hidden; }
+  .edit-page-head { background: #f9fafb; padding: 18px 24px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+  .edit-page-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: #1f2937; }
+  .edit-page-body { padding: 24px; }
+  .edit-page-body .grp { margin-bottom: 16px; }
+  .edit-page-body label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #374151; }
+  .edit-page-body label .req { color: #dc2626; margin-left: 2px; }
+  .edit-page-body input { width: 100%; padding: 10px 12px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; color: #111827; font-size: 14px; box-sizing: border-box; transition: border-color .15s, box-shadow .15s; }
+  .edit-page-body input:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.15); }
+  .edit-page-body input:disabled { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
+  .edit-page-msg { padding: 10px 12px; border-radius: 6px; font-size: 13px; text-align: center; margin-bottom: 12px; display: none; font-weight: 500; }
+  .edit-page-msg.show { display: block; }
+  .edit-page-msg.ok { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+  .edit-page-msg.err { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+  .edit-page-foot { display: flex; gap: 10px; padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; justify-content: flex-end; flex-wrap: wrap; }
+  .edit-page-foot button { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid transparent; min-width: 110px; transition: all .15s; }
+  .edit-page-foot .ep-cancel { background: #fff; color: #374151; border-color: #d1d5db; }
+  .edit-page-foot .ep-cancel:hover { background: #f3f4f6; }
+  .edit-page-foot .ep-retake { background: #f7c948; color: #92400e; border-color: #f7c948; }
+  .edit-page-foot .ep-retake:hover { background: #f5b91f; }
+  .edit-page-foot .ep-save { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  .edit-page-foot .ep-save:hover { background: #1557b0; }
+</style>
+<div class="edit-page-wrap">
+  <div class="edit-page-head">
+    <h2 data-i18n="Edit user info">Edit user info</h2>
+  </div>
+  <div class="edit-page-body">
+    <div class="edit-page-msg" id="ep-msg"></div>
+    <input type="hidden" id="ep-id">
+    <div class="grp">
+      <label><span data-i18n="Employee ID">Employee ID</span><span class="req">*</span></label>
+      <input id="ep-eid" type="text" required>
+    </div>
+    <div class="grp">
+      <label><span data-i18n="Full Name">Full Name</span><span class="req">*</span></label>
+      <input id="ep-name" type="text" required>
+    </div>
+    <div class="grp">
+      <label data-i18n="Email">Email</label>
+      <input id="ep-email" type="text">
+    </div>
+    <div class="grp">
+      <label><span data-i18n="Designations">Designations</span><span class="req">*</span></label>
+      <input id="ep-pos" type="text" required>
+    </div>
+    <div class="grp">
+      <label>
+        <span data-i18n="Fingerprints">Vân tay đã đăng ký</span>
+        <span id="ep-fingers-count" style="color:#6b7280; font-weight:400; font-size:12px; margin-left:6px;">(—)</span>
+      </label>
+      <div id="ep-fingers-list" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
+      <button type="button" id="ep-add-finger-btn" onclick="addFingerFromPage()"
+              style="margin-top:10px; padding:8px 14px; border-radius:6px; border:1px solid #1a73e8; background:#fff; color:#1a73e8; font-size:13px; font-weight:500; cursor:pointer;">
+        + <span data-i18n="Add fingerprint">Thêm vân tay</span>
+      </button>
+    </div>
+  </div>
+  <div class="edit-page-foot">
+    <button class="ep-cancel" onclick="cancelEdit()" data-i18n="Cancel">Cancel</button>
+    <button class="ep-save" onclick="savePage()" data-i18n="Save">Save</button>
+  </div>
+</div>
+<script>
+// eid được LOAD lúc đầu — dùng cho add/remove finger để không bị ảnh hưởng
+// khi user gõ đổi eid trong form (rename chỉ có hiệu lực sau khi Save).
+window._epLoadedEid = '';
+(function(){
+  var id = window._editUserId;
+  if (!id) { Database(); return; }
+  $.get('/get_user?id=' + id, function(d){
+    var u = (typeof d === 'string') ? JSON.parse(d) : d;
+    $('#ep-id').val(u.id || '');
+    $('#ep-eid').val(u.eid || '');
+    $('#ep-name').val(u.employee_name || '');
+    $('#ep-email').val(u.employee_email || '');
+    $('#ep-pos').val(u.position || '');
+    window._epLoadedEid = u.eid || '';
+    loadFingers();
+  }).fail(function(){
+    showEPMsg(tr('Không tải được dữ liệu user','Failed to load user'),'err');
+  });
+})();
+function tr(vi, en){ return ((localStorage.getItem('eetium_lang')||'vi')==='vi') ? vi : en; }
+function showEPMsg(txt, type){
+  var m = document.getElementById('ep-msg');
+  m.textContent = txt; m.className = 'edit-page-msg show ' + type;
+}
+function cancelEdit(){ Database(); }
+
+// ===== Quản lý vân tay (tối đa 5/user) =====
+function loadFingers(){
+  var eid = window._epLoadedEid;
+  if (!eid) return;
+  $.get('/list_fingers?eid=' + encodeURIComponent(eid), function(list){
+    if (typeof list === 'string') list = JSON.parse(list);
+    renderFingers(list || []);
+  }).fail(function(){
+    $('#ep-fingers-list').html('<div style="color:#dc2626; font-size:13px;">' +
+      tr('Lỗi tải danh sách vân tay','Failed to load fingers') + '</div>');
+  });
+}
+function renderFingers(list){
+  var $list = $('#ep-fingers-list').empty();
+  $('#ep-fingers-count').text('(' + list.length + '/5)');
+  if (list.length === 0) {
+    $list.html('<div style="color:#9ca3af; font-size:13px; font-style:italic;">' +
+      tr('Chưa có vân tay nào','No fingerprints yet') + '</div>');
+  } else {
+    list.forEach(function(f){
+      var $row = $('<div class="ep-finger-row" style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px;"></div>');
+      $row.append('<span style="flex:1; font-size:13px;"><b>' + (f.label || ('Vân ' + f.fpid)) + '</b> <span style="color:#6b7280;">(ID ' + f.fpid + ')</span></span>');
+      var $btn = $('<button type="button" style="padding:6px 12px; border-radius:6px; border:1px solid #dc2626; background:#fff; color:#dc2626; font-size:12px; cursor:pointer;">' +
+        tr('Xóa','Delete') + '</button>');
+      $btn.on('click', function(){ removeFingerRow(f.fpid, f.label || ('Vân ' + f.fpid)); });
+      $row.append($btn);
+      $list.append($row);
+    });
+  }
+  // Disable nút Thêm nếu đã đủ 5
+  var $addBtn = $('#ep-add-finger-btn');
+  if (list.length >= 5) {
+    $addBtn.prop('disabled', true).css({opacity:.5, cursor:'not-allowed'});
+  } else {
+    $addBtn.prop('disabled', false).css({opacity:1, cursor:'pointer'});
+  }
+}
+function addFingerFromPage(){
+  var eid = window._epLoadedEid;
+  if (!eid) { showEPMsg(tr('Chưa xác định được mã NV','Missing employee ID'),'err'); return; }
+  customConfirm({
+    title: tr('Thêm vân tay','Add fingerprint'),
+    msg: tr('Đặt ngón tay MỚI lên cảm biến và làm theo hướng dẫn trên OLED:\n- Đặt ngón tay 6 lần\n- Nhấc khi sensor báo\n\nMất ~30 giây.',
+            'Place a NEW finger on the sensor and follow OLED:\n- Place finger 6 times\n- Lift when sensor beeps\n\n~30 seconds.'),
+    okText: tr('Bắt đầu','Start'),
+    cancelText: tr('Hủy','Cancel'),
+    onOk: function(){
+      showEPMsg(tr('Đang lấy mẫu... xem OLED (30s)','Sampling... watch OLED (30s)'),'ok');
+      $.ajax({
+        url: '/add_finger', method: 'POST', data: { eid: eid }, timeout: 60000,
+        success: function(res){
+          var r = (typeof res === 'string') ? JSON.parse(res) : res;
+          showEPMsg(tr('Đã thêm vân tay (ID ' + r.fpid + ')','Added fingerprint (ID ' + r.fpid + ')'),'ok');
+          loadFingers();
+        },
+        error: function(xhr){
+          var msg = xhr.responseText || xhr.statusText;
+          if (msg === 'MAX_FINGERS') msg = tr('Đã đủ 5 vân tay','Already 5 fingers');
+          else if (msg === 'SENSOR_FULL') msg = tr('Cảm biến đầy (1500 templates)','Sensor full');
+          else if (msg === 'ENROLL_FAILED') msg = tr('Lấy mẫu thất bại — quét lại','Enroll failed — retry');
+          showEPMsg((tr('Thất bại: ','Failed: ')) + msg,'err');
+        }
+      });
+    }
+  });
+}
+function removeFingerRow(fpid, label){
+  customConfirm({
+    title: tr('Xóa vân tay','Delete fingerprint'),
+    msg: tr('Xóa ' + label + ' (ID ' + fpid + ')?\nKhông thể hoàn tác.',
+            'Delete ' + label + ' (ID ' + fpid + ')?\nCannot undo.'),
+    okText: tr('Xóa','Delete'),
+    cancelText: tr('Hủy','Cancel'),
+    okColor: '#dc2626',
+    onOk: function(){
+      $.ajax({
+        url: '/remove_finger', method: 'POST', data: { fpid: fpid }, timeout: 10000,
+        success: function(){
+          showEPMsg(tr('Đã xóa vân tay','Deleted'),'ok');
+          loadFingers();
+        },
+        error: function(xhr){
+          var msg = xhr.responseText || xhr.statusText;
+          if (msg === 'LAST_FINGER') msg = tr('Đây là vân tay cuối — dùng "Xóa user" thay vì xóa vân tay','Last finger — use "Delete user" instead');
+          showEPMsg((tr('Thất bại: ','Failed: ')) + msg,'err');
+        }
+      });
+    }
+  });
+}
+function savePage(){
+  // Validate required fields
+  var eid = $('#ep-eid').val().trim();
+  var name = $('#ep-name').val().trim();
+  var pos = $('#ep-pos').val().trim();
+  if (!eid) { showEPMsg(tr('Mã NV không được trống','Employee ID is required'),'err'); $('#ep-eid').focus(); return; }
+  if (!name) { showEPMsg(tr('Họ tên không được trống','Full Name is required'),'err'); $('#ep-name').focus(); return; }
+  if (!pos) { showEPMsg(tr('Chức vụ không được trống','Designations is required'),'err'); $('#ep-pos').focus(); return; }
+  $.ajax({
+    url: '/update_user', method: 'POST',
+    data: {
+      id: $('#ep-id').val(), eid: eid, name: name,
+      email: $('#ep-email').val(), pos: pos
+    },
+    success: function(res){
+      if (res === 'OK') {
+        showEPMsg(tr('Đã lưu','Saved'),'ok');
+        setTimeout(function(){ Database(); }, 600);
+      } else {
+        showEPMsg((tr('Lỗi: ','Error: ')) + res,'err');
+      }
+    },
+    error: function(xhr){
+      if (xhr.status === 409 || (xhr.responseText||'').indexOf('DUPLICATE_EID') >= 0) {
+        showEPMsg(tr('Mã NV đã tồn tại — vui lòng dùng mã khác','Employee ID already exists'),'err');
+        $('#ep-eid').focus().select();
+      } else {
+        showEPMsg((tr('Lỗi: ','Error: ')) + (xhr.responseText || xhr.statusText),'err');
+      }
+    }
+  });
+}
+</script>
